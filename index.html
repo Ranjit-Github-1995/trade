@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RSI Scanner — Oversold Stocks</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #080a0f;
+  --bg2:     #0d1018;
+  --bg3:     #111520;
+  --card:    #0f1219;
+  --border:  #1a2030;
+  --border2: #243050;
+  --accent:  #7c5cfc;
+  --gold:    #f0c040;
+  --red:     #ff4060;
+  --green:   #00d084;
+  --blue:    #38b6ff;
+  --orange:  #ff8c42;
+  --text:    #dde3f0;
+  --muted:   #4a5578;
+  --muted2:  #2a3050;
+  --rsi-low: #ff4060;
+  --rsi-mid: #f0c040;
+  --rsi-ok:  #00d084;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+}
+
+/* SCANLINES EFFECT */
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px);
+  pointer-events:none; z-index:9999;
+}
+
+/* HEADER */
+header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  position: sticky; top:0; z-index:100;
+}
+.logo-wrap { display:flex; align-items:center; gap:12px; }
+.logo-icon {
+  width:36px; height:36px;
+  background: linear-gradient(135deg, var(--accent), #4a3cb8);
+  border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; font-weight:900; color:#fff;
+}
+.logo-text { font-size:18px; font-weight:800; letter-spacing:-0.5px; }
+.logo-text span { color:var(--accent); }
+.logo-sub { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; letter-spacing:1px; text-transform:uppercase; }
+
+.header-right { display:flex; align-items:center; gap:12px; }
+.clock-wrap {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px; color:var(--muted);
+  display:flex; flex-direction:column; align-items:flex-end; gap:2px;
+}
+#ist-time { font-size:15px; font-weight:600; color:var(--text); }
+.mkt-badge {
+  display:flex; align-items:center; gap:5px;
+  font-size:10px; font-family:'JetBrains Mono',monospace;
+  padding:4px 10px; border-radius:20px;
+  border:1px solid var(--border2); color:var(--muted);
+  letter-spacing:0.5px;
+}
+.mkt-badge .dot { width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite; }
+.mkt-badge .dot.off { background:var(--red);animation:none; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+/* SCAN BAR */
+.scan-bar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 28px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.scan-label {
+  font-size:11px; font-weight:700; letter-spacing:1.5px;
+  text-transform:uppercase; color:var(--muted);
+  white-space:nowrap;
+}
+.rsi-threshold-wrap {
+  display:flex; align-items:center; gap:8px;
+}
+#rsi-slider {
+  -webkit-appearance:none;
+  width:140px; height:4px;
+  background:linear-gradient(to right, var(--accent) 0%, var(--accent) var(--pct,43%), var(--border2) var(--pct,43%), var(--border2) 100%);
+  border-radius:2px; outline:none; cursor:pointer;
+}
+#rsi-slider::-webkit-slider-thumb {
+  -webkit-appearance:none;
+  width:16px; height:16px; border-radius:50%;
+  background:var(--accent); box-shadow:0 0 8px rgba(124,92,252,0.6);
+  cursor:pointer;
+}
+#rsi-val {
+  font-family:'JetBrains Mono',monospace;
+  font-size:16px; font-weight:700; color:var(--accent);
+  min-width:32px;
+}
+.period-wrap { display:flex; gap:4px; }
+.period-btn {
+  background:transparent; border:1px solid var(--border2);
+  color:var(--muted); font-size:11px; font-weight:700;
+  padding:5px 10px; border-radius:6px; cursor:pointer;
+  font-family:'Outfit',sans-serif; transition:all 0.15s;
+}
+.period-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.scan-btn {
+  background:linear-gradient(135deg,var(--accent),#5c3ce0);
+  color:#fff; border:none; border-radius:8px;
+  padding:9px 22px; font-family:'Outfit',sans-serif;
+  font-size:13px; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; gap:7px;
+  transition:opacity 0.2s, transform 0.1s;
+  box-shadow:0 4px 14px rgba(124,92,252,0.3);
+}
+.scan-btn:hover { opacity:0.88; }
+.scan-btn:active { transform:scale(0.97); }
+.scan-btn:disabled { opacity:0.45; cursor:not-allowed; }
+.scan-btn .s-spin { display:none; width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite; }
+.scan-btn.scanning .s-spin { display:inline-block; }
+.scan-btn.scanning .s-icon { display:none; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+.auto-wrap { display:flex; align-items:center; gap:6px; margin-left:auto; }
+.auto-label { font-size:11px; color:var(--muted); }
+.toggle { position:relative; width:36px;height:20px; cursor:pointer; }
+.toggle input { opacity:0;width:0;height:0; }
+.toggle-track {
+  position:absolute; inset:0;
+  background:var(--border2); border-radius:20px; transition:background 0.2s;
+}
+.toggle input:checked + .toggle-track { background:var(--accent); }
+.toggle-thumb {
+  position:absolute; top:3px; left:3px;
+  width:14px;height:14px; background:#fff; border-radius:50%; transition:left 0.2s;
+}
+.toggle input:checked ~ .toggle-thumb { left:19px; }
+#auto-label-text { font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+
+/* STATS BAR */
+.stats-bar {
+  display:flex; gap:0; border-bottom:1px solid var(--border);
+  background:var(--bg2);
+}
+.stat-pill {
+  padding:10px 20px;
+  border-right:1px solid var(--border);
+  display:flex; align-items:center; gap:8px;
+}
+.stat-pill:last-child { border-right:none; }
+.stat-num { font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; }
+.stat-lbl { font-size:10px; color:var(--muted); letter-spacing:0.5px; text-transform:uppercase; }
+#stat-scanned { color:var(--blue); }
+#stat-oversold { color:var(--rsi-low); }
+#stat-warning { color:var(--orange); }
+#stat-normal { color:var(--green); }
+#progress-bar-wrap {
+  flex:1; display:flex; align-items:center; padding:0 20px; gap:10px;
+}
+#progress-track {
+  flex:1; height:4px; background:var(--border2); border-radius:2px; overflow:hidden;
+}
+#progress-fill {
+  height:100%; background:linear-gradient(90deg,var(--accent),var(--blue));
+  border-radius:2px; width:0%; transition:width 0.3s;
+}
+#progress-label { font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--muted); white-space:nowrap; }
+
+/* MAIN CONTENT */
+.content { padding:24px 28px; }
+
+/* FILTER TABS */
+.filter-row {
+  display:flex; align-items:center; gap:8px; margin-bottom:20px; flex-wrap:wrap;
+}
+.filter-tab {
+  display:flex; align-items:center; gap:5px;
+  padding:7px 14px; border-radius:8px;
+  font-size:12px; font-weight:700; cursor:pointer;
+  border:1px solid var(--border2); background:transparent; color:var(--muted);
+  transition:all 0.15s; font-family:'Outfit',sans-serif;
+}
+.filter-tab .dot { width:7px;height:7px;border-radius:50%; }
+.filter-tab.active.red-tab { background:rgba(255,64,96,0.12); border-color:rgba(255,64,96,0.4); color:var(--rsi-low); }
+.filter-tab.active.orange-tab { background:rgba(255,140,66,0.12); border-color:rgba(255,140,66,0.4); color:var(--orange); }
+.filter-tab.active.all-tab { background:rgba(124,92,252,0.12); border-color:rgba(124,92,252,0.4); color:var(--accent); }
+.filter-tab .cnt { font-size:10px; opacity:0.7; font-family:'JetBrains Mono',monospace; }
+.sort-wrap { margin-left:auto; display:flex; align-items:center; gap:6px; }
+.sort-select {
+  background:var(--bg3); border:1px solid var(--border2);
+  color:var(--text); padding:6px 10px; border-radius:6px;
+  font-family:'JetBrains Mono',monospace; font-size:11px; outline:none;
+}
+
+/* GRID */
+#results-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap:12px;
+}
+
+/* STOCK CARD */
+.stock-card {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  transition:all 0.2s;
+  position:relative;
+  overflow:hidden;
+  cursor:default;
+}
+.stock-card::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:2px;
+  background: var(--card-accent, var(--border));
+  transition:background 0.3s;
+}
+.stock-card.oversold { --card-accent: var(--rsi-low); border-color: rgba(255,64,96,0.2); }
+.stock-card.warning  { --card-accent: var(--orange);  border-color: rgba(255,140,66,0.15); }
+.stock-card:hover { transform:translateY(-2px); border-color:var(--border2); }
+.stock-card.oversold:hover { border-color:rgba(255,64,96,0.4); }
+
+.sc-top {
+  display:flex; justify-content:space-between; align-items:flex-start;
+  margin-bottom:12px;
+}
+.sc-name-wrap {}
+.sc-symbol { font-size:15px; font-weight:800; font-family:'JetBrains Mono',monospace; }
+.sc-fullname { font-size:10px; color:var(--muted); margin-top:2px; }
+.sc-sector { font-size:9px; color:var(--muted2); margin-top:1px; letter-spacing:0.5px; text-transform:uppercase; }
+
+.sc-price-wrap { text-align:right; }
+.sc-price { font-size:17px; font-weight:700; font-family:'JetBrains Mono',monospace; }
+.sc-chg { font-size:11px; font-family:'JetBrains Mono',monospace; font-weight:600; margin-top:2px; }
+
+/* RSI METER */
+.rsi-meter { margin-bottom:12px; }
+.rsi-row {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:5px;
+}
+.rsi-label { font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+.rsi-number {
+  font-family:'JetBrains Mono',monospace;
+  font-size:22px; font-weight:700;
+  line-height:1;
+}
+.rsi-signal {
+  font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
+  padding:2px 7px; border-radius:4px;
+}
+.sig-oversold { background:rgba(255,64,96,0.15); color:var(--rsi-low); }
+.sig-warning  { background:rgba(255,140,66,0.15); color:var(--orange); }
+.sig-normal   { background:rgba(0,208,132,0.12);  color:var(--green); }
+
+/* RSI TRACK */
+.rsi-track {
+  height:6px; background:var(--border2); border-radius:3px;
+  position:relative; overflow:visible; margin-bottom:4px;
+}
+.rsi-zone-oversold {
+  position:absolute; left:0; width:30%;
+  height:100%; background:rgba(255,64,96,0.15); border-radius:3px 0 0 3px;
+}
+.rsi-zone-warning {
+  position:absolute; left:30%; width:40%;
+  height:100%; background:rgba(255,140,66,0.08);
+}
+.rsi-zone-ok {
+  position:absolute; left:70%; width:30%;
+  height:100%; background:rgba(0,208,132,0.08); border-radius:0 3px 3px 0;
+}
+.rsi-fill {
+  position:absolute; top:0; left:0;
+  height:100%; border-radius:3px; transition:width 0.8s ease;
+}
+.rsi-thumb {
+  position:absolute; top:50%; transform:translate(-50%,-50%);
+  width:12px; height:12px; border-radius:50%;
+  border:2px solid var(--bg); box-shadow:0 0 6px currentColor;
+  transition:left 0.8s ease;
+}
+.rsi-ticks {
+  display:flex; justify-content:space-between;
+  font-size:9px; color:var(--muted2); font-family:'JetBrains Mono',monospace;
+  padding:0 1px;
+}
+
+/* BOTTOM STATS */
+.sc-stats {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:6px;
+  padding-top:12px; border-top:1px solid var(--border);
+}
+.sc-stat { }
+.sc-stat-lbl { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; }
+.sc-stat-val { font-size:12px; font-family:'JetBrains Mono',monospace; font-weight:600; margin-top:2px; }
+
+/* SIGNAL BADGE */
+.buy-signal {
+  display:flex; align-items:center; gap:6px;
+  padding:8px 10px; border-radius:6px;
+  background:rgba(0,208,132,0.08); border:1px solid rgba(0,208,132,0.2);
+  margin-top:10px;
+}
+.buy-signal-icon { font-size:13px; }
+.buy-signal-text { font-size:11px; color:var(--green); font-weight:600; }
+
+/* EMPTY / LOADING STATES */
+.empty-state {
+  grid-column:1/-1;
+  text-align:center; padding:80px 20px;
+  color:var(--muted);
+}
+.empty-icon { font-size:48px; margin-bottom:16px; }
+.empty-title { font-size:20px; font-weight:700; margin-bottom:8px; }
+.empty-sub { font-size:13px; line-height:1.6; }
+
+.skeleton-card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:16px; height:180px;
+  background: linear-gradient(90deg, var(--card) 25%, var(--bg3) 50%, var(--card) 75%);
+  background-size:200% 100%; animation:shimmer 1.3s infinite;
+}
+@keyframes shimmer { to{background-position:-200% 0} }
+
+/* ALERT TOAST */
+#toast {
+  position:fixed; bottom:24px; right:24px;
+  background:var(--bg3); border:1px solid var(--border2);
+  border-radius:10px; padding:12px 18px;
+  font-size:13px; font-weight:600;
+  display:none; z-index:9000;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  max-width:300px;
+  animation:slideUp 0.3s ease;
+}
+@keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+/* LEGEND */
+.legend {
+  display:flex; gap:16px; align-items:center;
+  margin-left:auto; flex-wrap:wrap;
+}
+.legend-item { display:flex; align-items:center; gap:5px; font-size:10px; color:var(--muted); }
+.legend-dot { width:8px;height:8px;border-radius:50%; }
+
+@media(max-width:700px){
+  .scan-bar { padding:12px 16px; }
+  .content { padding:16px; }
+  header { padding:0 16px; }
+  .stats-bar { flex-wrap:wrap; }
+  #results-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-wrap">
+    <div class="logo-icon">R</div>
+    <div>
+      <div class="logo-text">RSI <span>Scanner</span></div>
+      <div class="logo-sub">NSE Oversold Detector</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="mkt-badge">
+      <div class="dot" id="mkt-dot"></div>
+      <span id="mkt-label">Checking...</span>
+    </div>
+    <div class="clock-wrap">
+      <div id="ist-time">--:--:--</div>
+      <div id="ist-date" style="font-size:10px">IST</div>
+    </div>
+  </div>
+</header>
+
+<!-- SCAN CONTROLS -->
+<div class="scan-bar">
+  <span class="scan-label">RSI Below</span>
+  <div class="rsi-threshold-wrap">
+    <input type="range" id="rsi-slider" min="20" max="50" value="30" oninput="updateSlider(this)">
+    <div id="rsi-val">30</div>
+  </div>
+  <span class="scan-label" style="margin-left:8px">Period</span>
+  <div class="period-wrap">
+    <button class="period-btn active" onclick="setPeriod(this,14)">14</button>
+    <button class="period-btn" onclick="setPeriod(this,9)">9</button>
+    <button class="period-btn" onclick="setPeriod(this,21)">21</button>
+  </div>
+  <button class="scan-btn" id="scan-btn" onclick="runScan()">
+    <span class="s-icon">⚡ Scan Now</span>
+    <span class="s-spin"></span>
+    <span class="s-text">Scanning...</span>
+  </button>
+  <div class="auto-wrap">
+    <span class="auto-label">Auto</span>
+    <label class="toggle">
+      <input type="checkbox" id="auto-toggle" onchange="toggleAuto()">
+      <div class="toggle-track"></div>
+      <div class="toggle-thumb"></div>
+    </label>
+    <span id="auto-label-text">OFF</span>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--rsi-low)"></div>Oversold (&lt;30)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>Warning (30–40)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Normal (&gt;40)</div>
+  </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-pill">
+    <div>
+      <div class="stat-num" id="stat-scanned">—</div>
+      <div class="stat-lbl">Scanned</div>
+    </div>
+  </div>
+  <div class="stat-pill">
+    <div>
+      <div class="stat-num" id="stat-oversold">—</div>
+      <div class="stat-lbl">Oversold</div>
+    </div>
+  </div>
+  <div class="stat-pill">
+    <div>
+      <div class="stat-num" id="stat-warning">—</div>
+      <div class="stat-lbl">Warning Zone</div>
+    </div>
+  </div>
+  <div class="stat-pill">
+    <div>
+      <div class="stat-num" id="stat-normal">—</div>
+      <div class="stat-lbl">Normal</div>
+    </div>
+  </div>
+  <div id="progress-bar-wrap">
+    <div id="progress-track"><div id="progress-fill"></div></div>
+    <div id="progress-label">Ready to scan</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="content">
+  <div class="filter-row">
+    <button class="filter-tab active all-tab" onclick="filterResults(this,'all')">
+      <div class="dot" style="background:var(--accent)"></div> All Results <span class="cnt" id="cnt-all"></span>
+    </button>
+    <button class="filter-tab red-tab" onclick="filterResults(this,'oversold')">
+      <div class="dot" style="background:var(--rsi-low)"></div> Oversold <span class="cnt" id="cnt-oversold"></span>
+    </button>
+    <button class="filter-tab orange-tab" onclick="filterResults(this,'warning')">
+      <div class="dot" style="background:var(--orange)"></div> Warning Zone <span class="cnt" id="cnt-warning"></span>
+    </button>
+    <div class="sort-wrap">
+      <span style="font-size:11px;color:var(--muted)">Sort</span>
+      <select class="sort-select" id="sort-select" onchange="renderCards()">
+        <option value="rsi-asc">RSI Low → High</option>
+        <option value="rsi-desc">RSI High → Low</option>
+        <option value="chg-desc">% Change ↑</option>
+        <option value="chg-asc">% Change ↓</option>
+      </select>
+    </div>
+  </div>
+  <div id="results-grid">
+    <div class="empty-state">
+      <div class="empty-icon">📡</div>
+      <div class="empty-title">Ready to Scan</div>
+      <div class="empty-sub">Click <strong>⚡ Scan Now</strong> to find oversold stocks.<br>Best used during pre-open (9:00–9:15 AM) or at market open (9:15 AM IST).</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────
+let RSI_THRESHOLD = 30;
+let RSI_PERIOD = 14;
+let currentFilter = 'all';
+let allResults = [];
+let autoTimer = null;
+let scanInProgress = false;
+
+// NSE Large/Mid/Small cap watchlist (100 stocks)
+const WATCHLIST = [
+  // Nifty 50
+  {sym:'RELIANCE.NS',  name:'Reliance Industries',    sector:'Energy'},
+  {sym:'TCS.NS',       name:'Tata Consultancy Svcs',  sector:'IT'},
+  {sym:'HDFCBANK.NS',  name:'HDFC Bank',               sector:'Banking'},
+  {sym:'INFY.NS',      name:'Infosys',                 sector:'IT'},
+  {sym:'ICICIBANK.NS', name:'ICICI Bank',              sector:'Banking'},
+  {sym:'HINDUNILVR.NS',name:'Hindustan Unilever',      sector:'FMCG'},
+  {sym:'SBIN.NS',      name:'State Bank of India',     sector:'Banking'},
+  {sym:'AXISBANK.NS',  name:'Axis Bank',               sector:'Banking'},
+  {sym:'TATAMOTORS.NS',name:'Tata Motors',             sector:'Auto'},
+  {sym:'ADANIENT.NS',  name:'Adani Enterprises',       sector:'Conglomerate'},
+  {sym:'WIPRO.NS',     name:'Wipro',                   sector:'IT'},
+  {sym:'BAJFINANCE.NS',name:'Bajaj Finance',           sector:'NBFC'},
+  {sym:'MARUTI.NS',    name:'Maruti Suzuki',           sector:'Auto'},
+  {sym:'SUNPHARMA.NS', name:'Sun Pharma',              sector:'Pharma'},
+  {sym:'NESTLEIND.NS', name:'Nestle India',            sector:'FMCG'},
+  {sym:'ONGC.NS',      name:'ONGC',                    sector:'Oil & Gas'},
+  {sym:'NTPC.NS',      name:'NTPC',                    sector:'Power'},
+  {sym:'POWERGRID.NS', name:'Power Grid',              sector:'Power'},
+  {sym:'COALINDIA.NS', name:'Coal India',              sector:'Mining'},
+  {sym:'LT.NS',        name:'Larsen & Toubro',         sector:'Engineering'},
+  {sym:'BAJAJFINSV.NS',name:'Bajaj Finserv',           sector:'Finance'},
+  {sym:'TECHM.NS',     name:'Tech Mahindra',           sector:'IT'},
+  {sym:'HCLTECH.NS',   name:'HCL Technologies',        sector:'IT'},
+  {sym:'ULTRACEMCO.NS',name:'UltraTech Cement',        sector:'Cement'},
+  {sym:'TITAN.NS',     name:'Titan Company',           sector:'Consumer'},
+  {sym:'ASIANPAINT.NS',name:'Asian Paints',            sector:'Paints'},
+  {sym:'BAJAJ-AUTO.NS',name:'Bajaj Auto',              sector:'Auto'},
+  {sym:'HEROMOTOCO.NS',name:'Hero MotoCorp',           sector:'Auto'},
+  {sym:'EICHERMOT.NS', name:'Eicher Motors',           sector:'Auto'},
+  {sym:'TATACONSUM.NS',name:'Tata Consumer',           sector:'FMCG'},
+  // Nifty Next 50 / Midcap
+  {sym:'ADANIPORTS.NS',name:'Adani Ports',             sector:'Logistics'},
+  {sym:'ADANIGREEN.NS',name:'Adani Green Energy',      sector:'Power'},
+  {sym:'ADANIPOWER.NS',name:'Adani Power',             sector:'Power'},
+  {sym:'APOLLOHOSP.NS',name:'Apollo Hospitals',        sector:'Healthcare'},
+  {sym:'BHARTIARTL.NS',name:'Bharti Airtel',           sector:'Telecom'},
+  {sym:'BPCL.NS',      name:'BPCL',                    sector:'Oil & Gas'},
+  {sym:'BRITANNIA.NS', name:'Britannia Industries',    sector:'FMCG'},
+  {sym:'CIPLA.NS',     name:'Cipla',                   sector:'Pharma'},
+  {sym:'DIVISLAB.NS',  name:'Divi\'s Laboratories',   sector:'Pharma'},
+  {sym:'DRREDDY.NS',   name:'Dr. Reddy\'s Labs',      sector:'Pharma'},
+  {sym:'GRASIM.NS',    name:'Grasim Industries',       sector:'Diversified'},
+  {sym:'HAVELLS.NS',   name:'Havells India',           sector:'Electricals'},
+  {sym:'HINDALCO.NS',  name:'Hindalco Industries',     sector:'Metals'},
+  {sym:'INDUSINDBK.NS',name:'IndusInd Bank',           sector:'Banking'},
+  {sym:'ITC.NS',       name:'ITC',                     sector:'FMCG'},
+  {sym:'JSWSTEEL.NS',  name:'JSW Steel',               sector:'Metals'},
+  {sym:'KOTAKBANK.NS', name:'Kotak Mahindra Bank',     sector:'Banking'},
+  {sym:'M&M.NS',       name:'Mahindra & Mahindra',     sector:'Auto'},
+  {sym:'PIDILITIND.NS',name:'Pidilite Industries',     sector:'Chemicals'},
+  {sym:'SAIL.NS',      name:'SAIL',                    sector:'Metals'},
+  {sym:'SHRIRAMFIN.NS',name:'Shriram Finance',         sector:'NBFC'},
+  {sym:'SIEMENS.NS',   name:'Siemens India',           sector:'Engineering'},
+  {sym:'TATAPOWER.NS', name:'Tata Power',              sector:'Power'},
+  {sym:'TATASTEEL.NS', name:'Tata Steel',              sector:'Metals'},
+  {sym:'TORNTPHARM.NS',name:'Torrent Pharma',          sector:'Pharma'},
+  {sym:'VEDL.NS',      name:'Vedanta',                 sector:'Metals'},
+  {sym:'VOLTAS.NS',    name:'Voltas',                  sector:'Consumer'},
+  {sym:'ZOMATO.NS',    name:'Zomato',                  sector:'Internet'},
+  {sym:'PAYTM.NS',     name:'Paytm (One97)',           sector:'Fintech'},
+  {sym:'NYKAA.NS',     name:'Nykaa (FSN E-Comm)',      sector:'Internet'},
+  // Smallcap/others
+  {sym:'BANKBARODA.NS',name:'Bank of Baroda',          sector:'Banking'},
+  {sym:'CANBK.NS',     name:'Canara Bank',             sector:'Banking'},
+  {sym:'PNB.NS',       name:'Punjab National Bank',    sector:'Banking'},
+  {sym:'UNIONBANK.NS', name:'Union Bank of India',     sector:'Banking'},
+  {sym:'IDFCFIRSTB.NS',name:'IDFC First Bank',         sector:'Banking'},
+  {sym:'BANDHANBNK.NS',name:'Bandhan Bank',            sector:'Banking'},
+  {sym:'FEDERALBNK.NS',name:'Federal Bank',            sector:'Banking'},
+  {sym:'KARURVYSYA.NS',name:'Karur Vysya Bank',        sector:'Banking'},
+  {sym:'RBLBANK.NS',   name:'RBL Bank',                sector:'Banking'},
+  {sym:'YESBANK.NS',   name:'Yes Bank',                sector:'Banking'},
+  {sym:'IRFC.NS',      name:'Indian Railway Fin Corp', sector:'Finance'},
+  {sym:'RECLTD.NS',    name:'REC Limited',             sector:'Finance'},
+  {sym:'PFC.NS',       name:'Power Finance Corp',      sector:'Finance'},
+  {sym:'MUTHOOTFIN.NS',name:'Muthoot Finance',         sector:'NBFC'},
+  {sym:'CHOLAFIN.NS',  name:'Cholamandalam Finance',   sector:'NBFC'},
+  {sym:'SBICARD.NS',   name:'SBI Cards',               sector:'NBFC'},
+  {sym:'AUROPHARMA.NS',name:'Aurobindo Pharma',        sector:'Pharma'},
+  {sym:'BIOCON.NS',    name:'Biocon',                  sector:'Pharma'},
+  {sym:'LUPIN.NS',     name:'Lupin',                   sector:'Pharma'},
+  {sym:'ALKEM.NS',     name:'Alkem Laboratories',      sector:'Pharma'},
+  {sym:'MANKIND.NS',   name:'Mankind Pharma',          sector:'Pharma'},
+  {sym:'ZYDUSLIFE.NS', name:'Zydus Lifesciences',      sector:'Pharma'},
+  {sym:'AMBUJACEM.NS', name:'Ambuja Cements',          sector:'Cement'},
+  {sym:'ACC.NS',       name:'ACC',                     sector:'Cement'},
+  {sym:'SHREECEM.NS',  name:'Shree Cement',            sector:'Cement'},
+  {sym:'JKCEMENT.NS',  name:'JK Cement',               sector:'Cement'},
+  {sym:'IOCL.NS',      name:'Indian Oil Corp',         sector:'Oil & Gas'},
+  {sym:'HINDPETRO.NS', name:'HPCL',                    sector:'Oil & Gas'},
+  {sym:'GAIL.NS',      name:'GAIL India',              sector:'Oil & Gas'},
+  {sym:'OIL.NS',       name:'Oil India',               sector:'Oil & Gas'},
+  {sym:'NHPC.NS',      name:'NHPC',                    sector:'Power'},
+  {sym:'SJVN.NS',      name:'SJVN',                    sector:'Power'},
+  {sym:'RVNL.NS',      name:'Rail Vikas Nigam',        sector:'Engineering'},
+  {sym:'IRCON.NS',     name:'Ircon International',     sector:'Engineering'},
+  {sym:'BEL.NS',       name:'Bharat Electronics',      sector:'Defence'},
+  {sym:'HAL.NS',       name:'HAL',                     sector:'Defence'},
+  {sym:'BHEL.NS',      name:'BHEL',                    sector:'Engineering'},
+  {sym:'SUZLON.NS',    name:'Suzlon Energy',           sector:'Power'},
+  {sym:'TRENT.NS',     name:'Trent',                   sector:'Retail'},
+  {sym:'DMART.NS',     name:'Avenue Supermarts',       sector:'Retail'},
+  {sym:'PAGEIND.NS',   name:'Page Industries',         sector:'Consumer'},
+];
+
+// ─── RSI CALCULATION ──────────────────────────────────
+function calcRSI(closes, period) {
+  if (closes.length < period + 1) return null;
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff > 0) gains += diff; else losses -= diff;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const diff = closes[i] - closes[i - 1];
+    const g = diff > 0 ? diff : 0;
+    const l = diff < 0 ? -diff : 0;
+    avgGain = (avgGain * (period - 1) + g) / period;
+    avgLoss = (avgLoss * (period - 1) + l) / period;
+  }
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return parseFloat((100 - 100 / (1 + rs)).toFixed(2));
+}
+
+// ─── FETCH WITH PROXY FALLBACK ────────────────────────
+const PROXIES = [
+  s => `https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1d&range=60d`,
+  s => `https://query2.finance.yahoo.com/v8/finance/chart/${s}?interval=1d&range=60d`,
+  s => `https://corsproxy.io/?${encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/'+s+'?interval=1d&range=60d')}`,
+  s => `https://api.allorigins.win/raw?url=${encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/'+s+'?interval=1d&range=60d')}`,
+];
+async function fetchData(sym) {
+  let lastErr;
+  for (const mk of PROXIES) {
+    try {
+      const r = await fetch(mk(sym), {headers:{'Accept':'application/json'}});
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      if (j?.chart?.result?.[0]) return j;
+      throw new Error('no data');
+    } catch(e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+// ─── MAIN SCAN ────────────────────────────────────────
+async function runScan() {
+  if (scanInProgress) return;
+  scanInProgress = true;
+  const btn = document.getElementById('scan-btn');
+  btn.classList.add('scanning'); btn.disabled = true;
+  allResults = [];
+  document.getElementById('results-grid').innerHTML =
+    WATCHLIST.slice(0,12).map(()=>`<div class="skeleton-card"></div>`).join('');
+  updateStats(0,0,0,0);
+  setProgress(0, `Scanning 0 / ${WATCHLIST.length}`);
+
+  let done = 0, oversold = 0, warning = 0, normal = 0;
+
+  // Batch: 10 at a time to avoid rate limiting
+  const BATCH = 8;
+  for (let i = 0; i < WATCHLIST.length; i += BATCH) {
+    const batch = WATCHLIST.slice(i, i + BATCH);
+    await Promise.allSettled(batch.map(async stock => {
+      try {
+        const data = await fetchData(stock.sym);
+        const result = data.chart.result[0];
+        const closes = result.indicators.quote[0].close.filter(c => c != null);
+        const meta = result.meta;
+        const rsi = calcRSI(closes, RSI_PERIOD);
+        if (rsi === null) return;
+        const price = meta.regularMarketPrice;
+        const prev  = meta.chartPreviousClose;
+        const chgPct= ((price - prev) / prev * 100);
+        const vol   = meta.regularMarketVolume;
+        const hi    = meta.regularMarketDayHigh;
+        const lo    = meta.regularMarketDayLow;
+        const entry = { ...stock, rsi, price, prev, chgPct, vol, hi, lo };
+        allResults.push(entry);
+        if (rsi < RSI_THRESHOLD) oversold++;
+        else if (rsi < RSI_THRESHOLD + 10) warning++;
+        else normal++;
+      } catch(e) {}
+      done++;
+      setProgress(Math.round(done/WATCHLIST.length*100), `Scanning ${done} / ${WATCHLIST.length}`);
+      updateStats(done, oversold, warning, normal);
+    }));
+    // small delay between batches
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  renderCards();
+  setProgress(100, `Scan complete — ${new Date().toLocaleTimeString('en-IN',{hour12:true})}`);
+  btn.classList.remove('scanning'); btn.disabled = false;
+  scanInProgress = false;
+
+  if (oversold > 0) showToast(`🚨 ${oversold} oversold stock${oversold>1?'s':''} found! RSI below ${RSI_THRESHOLD}`,'var(--rsi-low)');
+  else showToast(`✅ Scan done. No stocks below RSI ${RSI_THRESHOLD} right now.`, 'var(--green)');
+}
+
+// ─── RENDER CARDS ─────────────────────────────────────
+function renderCards() {
+  let data = [...allResults];
+  // Filter
+  if (currentFilter === 'oversold') data = data.filter(s => s.rsi < RSI_THRESHOLD);
+  else if (currentFilter === 'warning') data = data.filter(s => s.rsi >= RSI_THRESHOLD && s.rsi < RSI_THRESHOLD + 10);
+  // Sort
+  const sort = document.getElementById('sort-select').value;
+  if (sort === 'rsi-asc')  data.sort((a,b) => a.rsi - b.rsi);
+  if (sort === 'rsi-desc') data.sort((a,b) => b.rsi - a.rsi);
+  if (sort === 'chg-desc') data.sort((a,b) => b.chgPct - a.chgPct);
+  if (sort === 'chg-asc')  data.sort((a,b) => a.chgPct - b.chgPct);
+
+  const os = allResults.filter(s=>s.rsi<RSI_THRESHOLD).length;
+  const wa = allResults.filter(s=>s.rsi>=RSI_THRESHOLD&&s.rsi<RSI_THRESHOLD+10).length;
+  document.getElementById('cnt-all').textContent = allResults.length;
+  document.getElementById('cnt-oversold').textContent = os;
+  document.getElementById('cnt-warning').textContent = wa;
+
+  if (!data.length) {
+    document.getElementById('results-grid').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">No stocks in this filter</div>
+        <div class="empty-sub">Try "All Results" or lower your RSI threshold.</div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('results-grid').innerHTML = data.map(s => stockCard(s)).join('');
+}
+
+function stockCard(s) {
+  const isOversold = s.rsi < RSI_THRESHOLD;
+  const isWarning  = s.rsi >= RSI_THRESHOLD && s.rsi < RSI_THRESHOLD + 10;
+  const cardClass  = isOversold ? 'oversold' : isWarning ? 'warning' : '';
+  const rsiColor   = isOversold ? 'var(--rsi-low)' : isWarning ? 'var(--orange)' : 'var(--green)';
+  const sigClass   = isOversold ? 'sig-oversold' : isWarning ? 'sig-warning' : 'sig-normal';
+  const sigText    = isOversold ? '⚠ OVERSOLD' : isWarning ? '⚡ WATCH' : '✓ NORMAL';
+  const upDn       = s.chgPct >= 0;
+  const pct        = s.rsi / 100;
+
+  // RSI fill color gradient
+  const fillColor = isOversold ? 'var(--rsi-low)' : isWarning ? 'var(--orange)' : 'var(--green)';
+
+  const buySignal = isOversold ? `
+    <div class="buy-signal">
+      <span class="buy-signal-icon">🎯</span>
+      <span class="buy-signal-text">Wait for RSI to cross ${RSI_THRESHOLD} — then consider BUY entry</span>
+    </div>` : '';
+
+  return `<div class="stock-card ${cardClass}">
+    <div class="sc-top">
+      <div class="sc-name-wrap">
+        <div class="sc-symbol">${s.sym.replace('.NS','')}</div>
+        <div class="sc-fullname">${s.name}</div>
+        <div class="sc-sector">${s.sector}</div>
+      </div>
+      <div class="sc-price-wrap">
+        <div class="sc-price" style="color:${upDn?'var(--green)':'var(--rsi-low)'}">${fmt(s.price)}</div>
+        <div class="sc-chg ${upDn?'':'dn'}" style="color:${upDn?'var(--green)':'var(--rsi-low)'}">${upDn?'+':''}${s.chgPct.toFixed(2)}%</div>
+      </div>
+    </div>
+    <div class="rsi-meter">
+      <div class="rsi-row">
+        <span class="rsi-label">RSI (${RSI_PERIOD})</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="rsi-signal ${sigClass}">${sigText}</span>
+          <span class="rsi-number" style="color:${rsiColor}">${s.rsi}</span>
+        </div>
+      </div>
+      <div class="rsi-track">
+        <div class="rsi-zone-oversold"></div>
+        <div class="rsi-zone-warning"></div>
+        <div class="rsi-zone-ok"></div>
+        <div class="rsi-fill" style="width:${pct*100}%;background:linear-gradient(90deg,var(--border2),${fillColor})"></div>
+        <div class="rsi-thumb" style="left:${pct*100}%;color:${rsiColor};background:${rsiColor}"></div>
+      </div>
+      <div class="rsi-ticks"><span>0</span><span>30</span><span>50</span><span>70</span><span>100</span></div>
+    </div>
+    <div class="sc-stats">
+      <div class="sc-stat"><div class="sc-stat-lbl">High</div><div class="sc-stat-val" style="color:var(--green)">${fmt(s.hi)}</div></div>
+      <div class="sc-stat"><div class="sc-stat-lbl">Low</div><div class="sc-stat-val" style="color:var(--rsi-low)">${fmt(s.lo)}</div></div>
+      <div class="sc-stat"><div class="sc-stat-lbl">Prev</div><div class="sc-stat-val">${fmt(s.prev)}</div></div>
+      <div class="sc-stat"><div class="sc-stat-lbl">Volume</div><div class="sc-stat-val">${s.vol?(s.vol/1e5).toFixed(1)+'L':'—'}</div></div>
+    </div>
+    ${buySignal}
+  </div>`;
+}
+
+function fmt(n) { return n!=null?n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'; }
+
+// ─── UI HELPERS ───────────────────────────────────────
+function updateStats(scanned, os, wa, no) {
+  document.getElementById('stat-scanned').textContent  = scanned || '—';
+  document.getElementById('stat-oversold').textContent = os || '—';
+  document.getElementById('stat-warning').textContent  = wa || '—';
+  document.getElementById('stat-normal').textContent   = no || '—';
+}
+function setProgress(pct, label) {
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = label;
+}
+function filterResults(el, f) {
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = f;
+  if (allResults.length) renderCards();
+}
+function updateSlider(el) {
+  RSI_THRESHOLD = parseInt(el.value);
+  document.getElementById('rsi-val').textContent = RSI_THRESHOLD;
+  const pct = ((RSI_THRESHOLD-20)/(50-20)*100).toFixed(0);
+  el.style.setProperty('--pct', pct+'%');
+  if (allResults.length) renderCards();
+}
+function setPeriod(el, p) {
+  RSI_PERIOD = p;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+function toggleAuto() {
+  const on = document.getElementById('auto-toggle').checked;
+  document.getElementById('auto-label-text').textContent = on ? '5min' : 'OFF';
+  if (on) {
+    runScan();
+    autoTimer = setInterval(runScan, 5 * 60 * 1000);
+    showToast('⏱ Auto-scan every 5 minutes enabled','var(--accent)');
+  } else {
+    clearInterval(autoTimer); autoTimer = null;
+    showToast('Auto-scan disabled','var(--muted)');
+  }
+}
+function showToast(msg, color='var(--text)') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.color = color;
+  t.style.borderColor = color;
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.style.display='none', 4000);
+}
+
+// ─── CLOCK + MARKET STATUS ────────────────────────────
+function updateClock() {
+  const ist = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  document.getElementById('ist-time').textContent = ist.toLocaleTimeString('en-IN',{hour12:false});
+  document.getElementById('ist-date').textContent = ist.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}) + ' IST';
+  const h=ist.getHours(), m=ist.getMinutes();
+  const preopen = (h===9 && m>=0 && m<15);
+  const open    = (h>9||(h===9&&m>=15)) && (h<15||(h===15&&m<=30));
+  const dot = document.getElementById('mkt-dot');
+  if (preopen) {
+    dot.className='dot'; dot.style.background='var(--gold)';
+    document.getElementById('mkt-label').textContent='Pre-Open';
+  } else if (open) {
+    dot.className='dot'; dot.style.background='var(--green)';
+    document.getElementById('mkt-label').textContent='Market Open';
+  } else {
+    dot.className='dot off';
+    document.getElementById('mkt-label').textContent='Market Closed';
+  }
+}
+setInterval(updateClock, 1000); updateClock();
+</script>
+</body>
+</html>
