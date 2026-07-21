@@ -347,6 +347,36 @@ let scanRunning = false, autoTimer = null, soundOn = false;
 let allSignals = [], todaySignals = [], seenKeys = new Set();
 let eodBuilt = false;
 
+// ── localStorage helpers: save/load todaySignals keyed by today's date ──
+const LS_KEY = 'intraday_signals_' + new Date().toISOString().slice(0,10);
+function saveSignals(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(todaySignals)); }catch(e){}
+}
+function loadSignals(){
+  try{
+    const raw=localStorage.getItem(LS_KEY);
+    if(raw){
+      const parsed=JSON.parse(raw);
+      if(Array.isArray(parsed)&&parsed.length){
+        todaySignals=parsed;
+        // Restore seenKeys so alerts don't re-fire
+        parsed.forEach(s=>seenKeys.add(s.sym+s.direction+new Date().toDateString()));
+        return true;
+      }
+    }
+  }catch(e){}
+  return false;
+}
+// Clean up old days' data (keep only today)
+function cleanOldStorage(){
+  try{
+    Object.keys(localStorage).forEach(k=>{
+      if(k.startsWith('intraday_signals_')&&k!==LS_KEY) localStorage.removeItem(k);
+    });
+  }catch(e){}
+}
+cleanOldStorage();
+
 const TF_MAP   = {'5m':'5m','15m':'15m','1h':'60m'};
 const TF_RANGE = {'5m':'5d','15m':'5d','1h':'30d'};
 
@@ -654,6 +684,7 @@ async function runScan(){
           const key=entry.sym+'_'+sig.direction+'_'+now.toDateString();
           if(!todaySignals.find(x=>x.sym===entry.sym&&x.direction===sig.direction)){
             todaySignals.push({...entry,scanTime:now.toLocaleTimeString('en-IN',{hour12:true})});
+            saveSignals(); // persist to localStorage immediately
           }
           // New signal popup + sound
           const alertKey=entry.sym+sig.direction+now.toDateString();
@@ -987,20 +1018,58 @@ function updateMarketUI(){
     else if(wknd)nx='Market reopens Monday 9:15 AM IST';
     else         nx='Market reopens tomorrow 9:15 AM IST';
     document.getElementById('next-open-txt').textContent=nx+' · Auto-scan available only during market hours';
-    // Build EOD once
-    if(closed&&!eodBuilt&&todaySignals.length){eodBuilt=true;buildEOD();}
+    // Build EOD once — try localStorage restore first if todaySignals is empty
+    if(closed&&!eodBuilt){
+      if(!todaySignals.length) loadSignals();
+      eodBuilt=true; buildEOD();
+    }
   } else {
     banner.style.display='none';
     btn.disabled=false;
-    eodBuilt=false; // reset for new day
+    // New trading day — reset everything
+    if(eodBuilt){ todaySignals=[]; seenKeys=new Set(); saveSignals(); }
+    eodBuilt=false;
+    document.getElementById('eod-panel').style.display='none';
   }
 }
 setInterval(updateMarketUI,1000);
 updateMarketUI();
 
-// On load: if market already closed and signals exist (from sessionStorage fallback)
+// On load: restore today's signals from localStorage, then show EOD if market closed
 window.addEventListener('load',()=>{
-  if(isMarketClosed()&&todaySignals.length&&!eodBuilt){eodBuilt=true;buildEOD();}
+  const restored = loadSignals();
+  if(restored){
+    // Update stats from restored data
+    const buys=todaySignals.filter(s=>s.direction==='BUY').length;
+    const sells=todaySignals.filter(s=>s.direction==='SELL').length;
+    document.getElementById('st-total').textContent=todaySignals.length;
+    document.getElementById('st-buy').textContent=buys;
+    document.getElementById('st-sell').textContent=sells;
+    document.getElementById('st-strong').textContent=todaySignals.filter(s=>s.confidence>=MIN_CONF).length;
+    document.getElementById('last-scan-time').textContent='Restored: '+todaySignals.length+' signals from today';
+  }
+  // If market is closed and we have signals (restored or otherwise), build EOD
+  if(isMarketClosed()&&todaySignals.length&&!eodBuilt){
+    eodBuilt=true;
+    buildEOD();
+  } else if(isMarketClosed()&&!todaySignals.length){
+    // No signals today — show message in EOD panel
+    const panel=document.getElementById('eod-panel');
+    panel.style.display='block';
+    const ist=getIST();
+    document.getElementById('eod-date').textContent=
+      ist.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · EOD Report';
+    document.getElementById('eod-total').textContent='0';
+    document.getElementById('eod-buy').textContent='0';
+    document.getElementById('eod-sell').textContent='0';
+    document.getElementById('eod-hit').textContent='0';
+    document.getElementById('eod-sl').textContent='0';
+    document.getElementById('eod-tbody').innerHTML=`
+      <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--muted)">
+        No signals were scanned today.<br>
+        <span style="font-size:11px">Open the page during market hours (9:15 AM – 3:30 PM IST) and run a scan to see results here after close.</span>
+      </td></tr>`;
+  }
 });
 </script>
 </body>
