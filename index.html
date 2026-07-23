@@ -1036,39 +1036,42 @@ setInterval(updateMarketUI,1000);
 updateMarketUI();
 
 // On load: restore today's signals from localStorage, then show EOD if market closed
-window.addEventListener('load',()=>{
-  const restored = loadSignals();
-  if(restored){
-    // Update stats from restored data
-    const buys=todaySignals.filter(s=>s.direction==='BUY').length;
-    const sells=todaySignals.filter(s=>s.direction==='SELL').length;
-    document.getElementById('st-total').textContent=todaySignals.length;
-    document.getElementById('st-buy').textContent=buys;
-    document.getElementById('st-sell').textContent=sells;
-    document.getElementById('st-strong').textContent=todaySignals.filter(s=>s.confidence>=MIN_CONF).length;
-    document.getElementById('last-scan-time').textContent='Restored: '+todaySignals.length+' signals from today';
-  }
-  // If market is closed and we have signals (restored or otherwise), build EOD
-  if(isMarketClosed()&&todaySignals.length&&!eodBuilt){
-    eodBuilt=true;
-    buildEOD();
-  } else if(isMarketClosed()&&!todaySignals.length){
-    // No signals today — show message in EOD panel
-    const panel=document.getElementById('eod-panel');
-    panel.style.display='block';
-    const ist=getIST();
-    document.getElementById('eod-date').textContent=
-      ist.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · EOD Report';
-    document.getElementById('eod-total').textContent='0';
-    document.getElementById('eod-buy').textContent='0';
-    document.getElementById('eod-sell').textContent='0';
-    document.getElementById('eod-hit').textContent='0';
-    document.getElementById('eod-sl').textContent='0';
-    document.getElementById('eod-tbody').innerHTML=`
-      <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--muted)">
-        No signals were scanned today.<br>
-        <span style="font-size:11px">Open the page during market hours (9:15 AM – 3:30 PM IST) and run a scan to see results here after close.</span>
-      </td></tr>`;
+const JSONBIN_ID = '6a61abe4f5f4af5e29b43159'; // paste your Bin ID
+
+async function loadFromJSONBin() {
+  try {
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
+      headers: { 'X-Access-Key': '$2a$10$QyLjs4SNnKLka4weEJJp3u6Q.k86sMd7h/dbIyTY/d1yzfLYe8Uqe' }
+    });
+    const json = await r.json();
+    const data = json.record;
+    if (!data?.signals?.length) return false;
+
+    // Check if data is from today
+    const today = new Date().toISOString().slice(0, 10);
+    if (data.date !== today) return false;
+
+    todaySignals = data.signals;
+    allSignals   = data.signals;
+    document.getElementById('st-total').textContent  = data.scanned;
+    document.getElementById('st-buy').textContent    = data.buy;
+    document.getElementById('st-sell').textContent   = data.sell;
+    document.getElementById('st-strong').textContent = data.signals.length;
+    document.getElementById('last-scan-time').textContent =
+      'Auto-scanned: ' + new Date(data.scannedAt).toLocaleTimeString('en-IN',{hour12:true});
+    renderGrid();
+    if (isMarketClosed()) { eodBuilt = true; buildEOD(); }
+    return true;
+  } catch(e) { return false; }
+}
+
+window.addEventListener('load', async () => {
+  const loaded = await loadFromJSONBin();
+  if (!loaded) {
+    const restored = loadSignals(); // fallback to localStorage
+    if (isMarketClosed() && todaySignals.length && !eodBuilt) {
+      eodBuilt = true; buildEOD();
+    }
   }
 });
 </script>

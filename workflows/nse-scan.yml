@@ -1,0 +1,33 @@
+# .github/workflows/nse-scan.yml
+# Runs NSE stock scan automatically during market hours
+# Times in UTC (IST = UTC+5:30)
+#   9:15 AM IST  = 3:45 AM UTC
+#  12:00 PM IST  = 6:30 AM UTC
+#   3:30 PM IST  = 10:00 AM UTC (final EOD scan)
+
+name: NSE Intraday Signal Scan
+
+on:
+  schedule:
+    - cron: '45 3 * * 1-5'   # 9:15 AM IST — market open scan
+    - cron: '30 6 * * 1-5'   # 12:00 PM IST — midday scan
+    - cron: '0 10 * * 1-5'   # 3:30 PM IST — EOD final scan
+  workflow_dispatch:           # allow manual trigger from GitHub UI
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run NSE scan
+        env:
+          JSONBIN_ID:  ${{ secrets.JSONBIN_ID }}
+          JSONBIN_KEY: ${{ secrets.JSONBIN_KEY }}
+        run: node .github/scripts/scan.js
