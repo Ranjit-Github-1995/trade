@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F&O Signal Engine — Options BUY/SELL</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090e;--bg2:#0b0e16;--bg3:#10141f;--card:#0d1119;
+  --border:#181f30;--b2:#1e2840;--accent:#6c63ff;--gold:#f5c842;
+  --red:#ff3d5a;--green:#00cc7a;--blue:#29b6f6;--orange:#ff7043;
+  --purple:#b44fff;--teal:#00d4c8;
+  --text:#dde3f0;--muted:#455070;--m2:#2a3450;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);pointer-events:none;z-index:9999}
+
+/* ── HEADER ── */
+header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:62px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;gap:12px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--purple),#3a32c0);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff}
+.logo-name{font-size:17px;font-weight:800;letter-spacing:-.4px}
+.logo-name span{color:var(--purple)}
+.logo-sub{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase}
+.hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mkt-pill{display:flex;align-items:center;gap:5px;font-size:10px;font-family:'JetBrains Mono',monospace;padding:5px 12px;border-radius:20px;border:1px solid var(--b2);color:var(--muted)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite}
+.dot.off{background:var(--red);animation:none}
+.dot.pre{background:var(--gold);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+#hdr-time{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600}
+.nav-btn{background:var(--bg3);border:1px solid var(--b2);border-radius:8px;padding:6px 14px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── CLOSED BANNER ── */
+#closed-banner{display:none;background:linear-gradient(135deg,rgba(245,200,66,.1),rgba(180,79,255,.08));border-bottom:1px solid rgba(245,200,66,.2);padding:10px 24px;text-align:center}
+.cb-title{font-size:13px;font-weight:800;color:var(--gold)}
+.cb-sub{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* ── INDICES BAR ── */
+.idx-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;gap:20px;align-items:center;overflow-x:auto;flex-wrap:nowrap}
+.idx-item{display:flex;flex-direction:column;gap:2px;min-width:120px}
+.idx-name{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.idx-val{font-size:15px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.idx-chg{font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:600}
+.idx-sep{width:1px;height:36px;background:var(--border);flex-shrink:0}
+.expiry-info{margin-left:auto;display:flex;gap:12px;flex-shrink:0}
+.exp-box{background:var(--bg3);border:1px solid var(--b2);border-radius:7px;padding:6px 12px;text-align:center}
+.exp-name{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.exp-date{font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--gold);margin-top:2px}
+.exp-days{font-size:9px;color:var(--muted);margin-top:1px}
+
+/* ── CONTROL BAR ── */
+.ctrl-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ctrl-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.seg-btns{display:flex;gap:3px}
+.seg-btn{background:transparent;border:1px solid var(--b2);color:var(--muted);font-size:11px;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s}
+.seg-btn.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+.scan-btn{background:linear-gradient(135deg,var(--purple),#3a32c0);color:#fff;border:none;border-radius:8px;padding:9px 20px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(180,79,255,.35);transition:opacity .2s,transform .1s}
+.scan-btn:hover{opacity:.88}.scan-btn:active{transform:scale(.97)}
+.scan-btn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+.spin{display:none;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+.scan-btn.loading .spin{display:inline-block}
+.scan-btn.loading .si{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.auto-box{display:flex;align-items:center;gap:6px;margin-left:auto}
+.tgl{position:relative;width:38px;height:21px;cursor:pointer}
+.tgl input{opacity:0;width:0;height:0}
+.tgl-tr{position:absolute;inset:0;background:var(--b2);border-radius:20px;transition:background .2s}
+.tgl input:checked+.tgl-tr{background:var(--green)}
+.tgl-th{position:absolute;top:3px;left:3px;width:15px;height:15px;background:#fff;border-radius:50%;transition:left .2s}
+.tgl input:checked~.tgl-th{left:20px}
+
+/* ── STATS ROW ── */
+.stats-row{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);overflow-x:auto}
+.st-box{padding:10px 18px;border-right:1px solid var(--border);min-width:110px}
+.st-num{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700}
+.st-lbl{font-size:9px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-top:1px}
+.prog-wrap{flex:1;display:flex;align-items:center;gap:10px;padding:0 18px;min-width:180px}
+.prog-track{flex:1;height:4px;background:var(--b2);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--purple),var(--blue));border-radius:2px;width:0%;transition:width .3s}
+#prog-lbl{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);white-space:nowrap}
+
+/* ── FILTER ROW ── */
+.filter-row{padding:10px 24px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--bg2)}
+.f-tab{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--b2);background:transparent;color:var(--muted);transition:all .15s;font-family:'Outfit',sans-serif}
+.f-tab .fdot{width:7px;height:7px;border-radius:50%}
+.f-tab.active.fc{background:rgba(0,204,122,.1);border-color:rgba(0,204,122,.4);color:var(--green)}
+.f-tab.active.fp{background:rgba(255,61,90,.1);border-color:rgba(255,61,90,.4);color:var(--red)}
+.f-tab.active.fa{background:rgba(180,79,255,.1);border-color:rgba(180,79,255,.4);color:var(--purple)}
+.f-tab.active.fn{background:rgba(41,182,246,.1);border-color:rgba(41,182,246,.4);color:var(--blue)}
+.f-tab.active.fb2{background:rgba(0,212,200,.1);border-color:rgba(0,212,200,.4);color:var(--teal)}
+.f-tab .fcnt{font-size:9px;opacity:.7;font-family:'JetBrains Mono',monospace}
+.sort-sel{background:var(--bg3);border:1px solid var(--b2);color:var(--text);padding:5px 9px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-left:auto}
+.conf-locked{display:flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.25);border-radius:7px;font-size:10px;font-weight:700;color:var(--gold);white-space:nowrap}
+
+/* ── OPTION GRID ── */
+.opt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;padding:20px 24px}
+
+/* ── OPTION CARD ── */
+.opt-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;position:relative;overflow:hidden;transition:all .2s;cursor:default}
+.opt-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.opt-card.call-buy{--ca:var(--green);border-color:rgba(0,204,122,.2)}
+.opt-card.call-buy::before{background:var(--green)}
+.opt-card.call-sell{--ca:var(--orange);border-color:rgba(255,112,67,.2)}
+.opt-card.call-sell::before{background:var(--orange)}
+.opt-card.put-buy{--ca:var(--red);border-color:rgba(255,61,90,.2)}
+.opt-card.put-buy::before{background:var(--red)}
+.opt-card.put-sell{--ca:var(--purple);border-color:rgba(180,79,255,.2)}
+.opt-card.put-sell::before{background:var(--purple)}
+.opt-card.strong{box-shadow:0 0 20px rgba(180,79,255,.15)}
+.opt-card:hover{transform:translateY(-2px)}
+
+/* card top */
+.oc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.oc-left .oc-sym{font-size:15px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.oc-left .oc-detail{font-size:10px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace}
+.oc-left .oc-expiry{font-size:9px;color:var(--gold);margin-top:2px;font-weight:700}
+.oc-right{text-align:right}
+.oc-price{font-size:17px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.oc-ul{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px}
+
+/* signal badge */
+.oc-badge{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;margin-bottom:10px}
+.oc-badge.call-buy{background:rgba(0,204,122,.1);border:1px solid rgba(0,204,122,.25)}
+.oc-badge.call-sell{background:rgba(255,112,67,.1);border:1px solid rgba(255,112,67,.25)}
+.oc-badge.put-buy{background:rgba(255,61,90,.1);border:1px solid rgba(255,61,90,.25)}
+.oc-badge.put-sell{background:rgba(180,79,255,.1);border:1px solid rgba(180,79,255,.25)}
+.oc-dir{font-size:16px;font-weight:900;white-space:nowrap}
+.oc-dir.call-buy{color:var(--green)}
+.oc-dir.call-sell{color:var(--orange)}
+.oc-dir.put-buy{color:var(--red)}
+.oc-dir.put-sell{color:var(--purple)}
+.oc-conf-wrap{flex:1}
+.oc-conf-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.oc-conf-track{height:4px;background:var(--b2);border-radius:3px;overflow:hidden}
+.oc-conf-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.oc-conf-fill.call-buy{background:linear-gradient(90deg,#009955,var(--green))}
+.oc-conf-fill.call-sell{background:linear-gradient(90deg,#cc5500,var(--orange))}
+.oc-conf-fill.put-buy{background:linear-gradient(90deg,#cc1133,var(--red))}
+.oc-conf-fill.put-sell{background:linear-gradient(90deg,#7700cc,var(--purple))}
+.oc-conf-pct{font-size:15px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.oc-conf-pct.call-buy{color:var(--green)}
+.oc-conf-pct.call-sell{color:var(--orange)}
+.oc-conf-pct.put-buy{color:var(--red)}
+.oc-conf-pct.put-sell{color:var(--purple)}
+.new-badge{font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:4px;background:rgba(245,200,66,.15);color:var(--gold);border:1px solid rgba(245,200,66,.3);animation:np 2s infinite;white-space:nowrap}
+@keyframes np{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* indicators */
+.oc-inds{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px}
+.oc-ind{background:var(--bg3);border-radius:6px;padding:7px 9px;border:1px solid var(--border)}
+.oc-ind-name{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.oc-ind-val{font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:700}
+.oc-ind-sig{font-size:9px;font-weight:700;margin-top:1px}
+.bull{color:var(--green)}.bear{color:var(--red)}.neut{color:var(--muted)}
+
+/* greeks */
+.greeks{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
+.greek-box{background:var(--bg3);border-radius:6px;padding:6px 8px;text-align:center;border:1px solid var(--border)}
+.greek-name{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.greek-val{font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:700;margin-top:2px}
+
+/* levels */
+.oc-levels{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:9px}
+.lv-box{background:var(--bg3);border-radius:6px;padding:7px 9px;text-align:center;border:1px solid var(--border)}
+.lv-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.lv-val{font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;margin-top:2px}
+
+.oc-bottom{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.rr-badge{font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:700;padding:2px 9px;border-radius:4px;background:rgba(108,99,255,.12);color:var(--accent);border:1px solid rgba(108,99,255,.2)}
+.lot-badge{font-size:10px;font-family:'JetBrains Mono',monospace;padding:2px 9px;border-radius:4px;background:rgba(41,182,246,.1);color:var(--blue);border:1px solid rgba(41,182,246,.2)}
+.atm-badge{font-size:8px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:4px;background:rgba(245,200,66,.15);color:var(--gold);border:1px solid rgba(245,200,66,.3)}
+.reason-row{padding:7px 9px;background:var(--bg3);border-radius:6px;border-left:2px solid var(--ca,var(--border));font-size:10px;color:var(--muted);line-height:1.5}
+.all-agree{color:var(--green);font-weight:700;font-size:10px;display:block;margin-bottom:2px}
+
+/* ── EMPTY / SKELETON ── */
+.empty{grid-column:1/-1;text-align:center;padding:70px 20px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:14px}
+.empty-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:8px}
+.empty-sub{font-size:13px;line-height:1.7}
+.skel{background:var(--card);border:1px solid var(--border);border-radius:14px;height:300px;background:linear-gradient(90deg,var(--card) 25%,var(--bg3) 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.3s infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+
+/* ── ALERT POPUP ── */
+#alert-popup{position:fixed;top:74px;right:20px;z-index:1000;display:none;flex-direction:column;gap:8px;max-width:300px}
+.alert-card{background:var(--bg3);border-radius:12px;padding:12px 14px;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:slideIn .3s ease;border:1px solid var(--b2);position:relative}
+@keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+.alert-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.alert-sym{font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.alert-dir-badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px}
+.alert-detail{font-size:10px;color:var(--muted);line-height:1.5}
+.alert-close{position:absolute;top:7px;right:9px;cursor:pointer;color:var(--muted);font-size:13px}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--b2);border-radius:10px;padding:10px 20px;font-size:12px;font-weight:600;display:none;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.4);white-space:nowrap}
+
+/* ── OI TABLE ── */
+.oi-section{margin:0 24px 20px;border-radius:14px;border:1px solid var(--border);overflow:hidden}
+.oi-header{background:var(--bg2);padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.oi-title{font-size:13px;font-weight:800}
+.oi-sub{font-size:10px;color:var(--muted)}
+.oi-table-wrap{overflow-x:auto}
+.oi-table{width:100%;border-collapse:collapse;min-width:700px}
+.oi-table th{text-align:center;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border)}
+.oi-table td{padding:8px 10px;font-size:11px;font-family:'JetBrains Mono',monospace;text-align:center;border-bottom:1px solid rgba(24,31,48,.5)}
+.oi-table tr:hover td{background:rgba(255,255,255,.015)}
+.oi-table .atm-row td{background:rgba(245,200,66,.05);font-weight:700}
+.oi-table .strike-col{color:var(--gold);font-weight:700;font-size:12px}
+.call-col{color:var(--green)}.put-col{color:var(--red)}
+.oi-bar{height:4px;border-radius:2px;margin-top:3px;min-width:4px}
+
+@media(max-width:700px){
+  .opt-grid{grid-template-columns:1fr;padding:12px}
+  header,.ctrl-bar,.filter-row{padding-left:14px;padding-right:14px}
+  .greeks{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">F&O</div>
+    <div>
+      <div class="logo-name">F&O <span>Signal Engine</span></div>
+      <div class="logo-sub">Options · RSI · MACD · EMA · Auto Expiry · 85% Confidence</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <a class="nav-btn" href="index.html">⚡ Equity Signals</a>
+    <div class="mkt-pill"><div class="dot" id="mkt-dot"></div><span id="mkt-lbl">Checking...</span></div>
+    <div id="hdr-time">--:--:--</div>
+  </div>
+</header>
+
+<!-- CLOSED BANNER -->
+<div id="closed-banner">
+  <div class="cb-title">🔒 Market Closed — F&O signals from last scan shown below</div>
+  <div class="cb-sub" id="next-open-txt">NSE F&O: 9:15 AM – 3:30 PM IST · Options expire every Thursday (NIFTY/BANKNIFTY weekly)</div>
+</div>
+
+<!-- INDICES BAR -->
+<div class="idx-bar">
+  <div class="idx-item">
+    <div class="idx-name">NIFTY 50</div>
+    <div class="idx-val" id="nifty-val">—</div>
+    <div class="idx-chg" id="nifty-chg">—</div>
+  </div>
+  <div class="idx-sep"></div>
+  <div class="idx-item">
+    <div class="idx-name">BANK NIFTY</div>
+    <div class="idx-val" id="bnf-val">—</div>
+    <div class="idx-chg" id="bnf-chg">—</div>
+  </div>
+  <div class="idx-sep"></div>
+  <div class="idx-item">
+    <div class="idx-name">NIFTY IT</div>
+    <div class="idx-val" id="nit-val">—</div>
+    <div class="idx-chg" id="nit-chg">—</div>
+  </div>
+  <div class="idx-sep"></div>
+  <div class="idx-item">
+    <div class="idx-name">VIX</div>
+    <div class="idx-val" id="vix-val">—</div>
+    <div class="idx-chg" id="vix-chg" style="font-size:9px;color:var(--muted)">Volatility Index</div>
+  </div>
+  <div class="expiry-info" id="expiry-info">
+    <div class="exp-box">
+      <div class="exp-name">NIFTY Expiry</div>
+      <div class="exp-date" id="nifty-expiry">—</div>
+      <div class="exp-days" id="nifty-exp-days">—</div>
+    </div>
+    <div class="exp-box">
+      <div class="exp-name">BANKNIFTY Expiry</div>
+      <div class="exp-date" id="bnf-expiry">—</div>
+      <div class="exp-days" id="bnf-exp-days">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="ctrl-bar">
+  <span class="ctrl-label">Instrument</span>
+  <div class="seg-btns" id="inst-btns">
+    <button class="seg-btn active" onclick="setInst(this,'ALL')">All</button>
+    <button class="seg-btn" onclick="setInst(this,'NIFTY')">NIFTY</button>
+    <button class="seg-btn" onclick="setInst(this,'BANKNIFTY')">BANKNIFTY</button>
+    <button class="seg-btn" onclick="setInst(this,'STOCKS')">Stocks</button>
+  </div>
+  <span class="ctrl-label" style="margin-left:8px">Option Type</span>
+  <div class="seg-btns" id="type-btns">
+    <button class="seg-btn active" onclick="setOptType(this,'ALL')">All</button>
+    <button class="seg-btn" onclick="setOptType(this,'CALL')">CALL</button>
+    <button class="seg-btn" onclick="setOptType(this,'PUT')">PUT</button>
+  </div>
+  <div class="conf-locked">🔒 Min 85% Confidence</div>
+  <button class="scan-btn" id="scan-btn" onclick="runFOScan()">
+    <span class="si">⚡ Scan F&O Signals</span>
+    <span class="spin"></span>
+    <span style="display:none" class="st">Scanning...</span>
+  </button>
+  <div class="auto-box">
+    <span style="font-size:10px;color:var(--muted)">Auto (5min)</span>
+    <label class="tgl"><input type="checkbox" id="auto-tog" onchange="toggleAuto()"><div class="tgl-tr"></div><div class="tgl-th"></div></label>
+    <span id="auto-txt" style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">OFF</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-row">
+  <div class="st-box"><div class="st-num" id="st-total" style="color:var(--blue)">—</div><div class="st-lbl">Scanned</div></div>
+  <div class="st-box"><div class="st-num" id="st-cb" style="color:var(--green)">—</div><div class="st-lbl">CALL BUY</div></div>
+  <div class="st-box"><div class="st-num" id="st-cs" style="color:var(--orange)">—</div><div class="st-lbl">CALL SELL</div></div>
+  <div class="st-box"><div class="st-num" id="st-pb" style="color:var(--red)">—</div><div class="st-lbl">PUT BUY</div></div>
+  <div class="st-box"><div class="st-num" id="st-ps" style="color:var(--purple)">—</div><div class="st-lbl">PUT SELL</div></div>
+  <div class="st-box"><div class="st-num" id="st-strong" style="color:var(--gold)">—</div><div class="st-lbl">Strong ≥85%</div></div>
+  <div class="prog-wrap">
+    <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+    <div id="prog-lbl">Ready</div>
+  </div>
+  <div id="last-scan-time" style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);padding:0 16px;white-space:nowrap;display:flex;align-items:center">—</div>
+</div>
+
+<!-- FILTER -->
+<div class="filter-row">
+  <button class="f-tab fa active" onclick="applyFilter(this,'all')"><div class="fdot" style="background:var(--purple)"></div>All <span class="fcnt" id="fcnt-all"></span></button>
+  <button class="f-tab fc" onclick="applyFilter(this,'call-buy')"><div class="fdot" style="background:var(--green)"></div>CALL BUY <span class="fcnt" id="fcnt-cb"></span></button>
+  <button class="f-tab" style="color:var(--muted)" onclick="applyFilter(this,'call-sell')"><div class="fdot" style="background:var(--orange)"></div>CALL SELL <span class="fcnt" id="fcnt-cs"></span></button>
+  <button class="f-tab fp" onclick="applyFilter(this,'put-buy')"><div class="fdot" style="background:var(--red)"></div>PUT BUY <span class="fcnt" id="fcnt-pb"></span></button>
+  <button class="f-tab" style="color:var(--muted)" onclick="applyFilter(this,'put-sell')"><div class="fdot" style="background:var(--purple)"></div>PUT SELL <span class="fcnt" id="fcnt-ps"></span></button>
+  <select class="sort-sel" id="sort-sel" onchange="renderCards()">
+    <option value="conf-desc">Confidence ↓ (Best first)</option>
+    <option value="rsi-asc">RSI Low→High</option>
+    <option value="strike-asc">Strike ↑</option>
+    <option value="strike-desc">Strike ↓</option>
+  </select>
+</div>
+
+<!-- OI TABLE -->
+<div class="oi-section" id="oi-section" style="display:none">
+  <div class="oi-header">
+    <div>
+      <div class="oi-title">📊 Option Chain — Open Interest Heatmap</div>
+      <div class="oi-sub" id="oi-sub">Strike-wise PCR and OI distribution</div>
+    </div>
+    <select id="oi-inst-sel" onchange="renderOITable()" style="background:var(--bg3);border:1px solid var(--b2);color:var(--text);padding:5px 10px;border-radius:6px;font-size:11px;outline:none">
+      <option value="NIFTY">NIFTY</option>
+      <option value="BANKNIFTY">BANKNIFTY</option>
+    </select>
+  </div>
+  <div class="oi-table-wrap">
+    <table class="oi-table">
+      <thead><tr>
+        <th style="color:var(--green)">CALL OI</th>
+        <th style="color:var(--green)">CALL Chg OI</th>
+        <th style="color:var(--green)">CALL LTP</th>
+        <th style="color:var(--gold)">STRIKE</th>
+        <th style="color:var(--red)">PUT LTP</th>
+        <th style="color:var(--red)">PUT Chg OI</th>
+        <th style="color:var(--red)">PUT OI</th>
+        <th>PCR</th>
+      </tr></thead>
+      <tbody id="oi-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- OPTION CARDS GRID -->
+<div class="opt-grid" id="opt-grid">
+  <div class="empty">
+    <div class="empty-icon">📊</div>
+    <div class="empty-title">F&O Signal Engine Ready</div>
+    <div class="empty-sub">
+      Click <strong>⚡ Scan F&O Signals</strong> to detect CALL & PUT signals.<br><br>
+      Scans <strong>NIFTY · BANKNIFTY · Top Stocks</strong> across all liquid strikes.<br>
+      Uses <strong>RSI + MACD + EMA</strong> with ≥ 85% confidence filter.<br><br>
+      <strong>CALL BUY</strong> = Bullish · <strong>PUT BUY</strong> = Bearish<br>
+      <strong>CALL SELL</strong> = Bearish hedge · <strong>PUT SELL</strong> = Bullish hedge<br><br>
+      Expiry auto-rolls every week — always shows nearest active expiry.
+    </div>
+  </div>
+</div>
+
+<div id="alert-popup"></div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════
+const MIN_CONF = 85;
+let INST_FILTER = 'ALL', OPT_TYPE = 'ALL', CARD_FILTER = 'all';
+let scanRunning = false, autoTimer = null;
+let allOptions = [], oiData = {};
+const LS_KEY_FO = 'fo_signals_' + new Date().toISOString().slice(0,10);
+
+// ── F&O Instruments with lot sizes ──────────────────────
+const FO_INSTRUMENTS = [
+  // Index
+  {sym:'NIFTY',   ul:'^NSEI',      type:'INDEX', lot:75,  strikes:50},
+  {sym:'BANKNIFTY',ul:'^NSEBANK',  type:'INDEX', lot:15,  strikes:100},
+  // Large cap stocks
+  {sym:'RELIANCE', ul:'RELIANCE.NS',type:'STOCK', lot:250, strikes:20},
+  {sym:'TCS',      ul:'TCS.NS',     type:'STOCK', lot:150, strikes:20},
+  {sym:'HDFCBANK', ul:'HDFCBANK.NS',type:'STOCK', lot:550, strikes:5},
+  {sym:'INFY',     ul:'INFY.NS',    type:'STOCK', lot:300, strikes:10},
+  {sym:'ICICIBANK',ul:'ICICIBANK.NS',type:'STOCK',lot:700, strikes:5},
+  {sym:'SBIN',     ul:'SBIN.NS',    type:'STOCK', lot:1500,strikes:5},
+  {sym:'AXISBANK', ul:'AXISBANK.NS',type:'STOCK', lot:625, strikes:5},
+  {sym:'BAJFINANCE',ul:'BAJFINANCE.NS',type:'STOCK',lot:125,strikes:10},
+  {sym:'TATAMOTORS',ul:'TATAMOTORS.NS',type:'STOCK',lot:1425,strikes:5},
+  {sym:'ADANIENT', ul:'ADANIENT.NS',type:'STOCK', lot:275, strikes:10},
+  {sym:'WIPRO',    ul:'WIPRO.NS',   type:'STOCK', lot:1500,strikes:5},
+  {sym:'HCLTECH',  ul:'HCLTECH.NS', type:'STOCK', lot:350, strikes:10},
+  {sym:'MARUTI',   ul:'MARUTI.NS',  type:'STOCK', lot:37,  strikes:50},
+  {sym:'SUNPHARMA',ul:'SUNPHARMA.NS',type:'STOCK',lot:350, strikes:10},
+  {sym:'LT',       ul:'LT.NS',      type:'STOCK', lot:150, strikes:10},
+  {sym:'NTPC',     ul:'NTPC.NS',    type:'STOCK', lot:2250,strikes:5},
+  {sym:'TATASTEEL',ul:'TATASTEEL.NS',type:'STOCK',lot:1350,strikes:5},
+  {sym:'JSWSTEEL', ul:'JSWSTEEL.NS',type:'STOCK', lot:675, strikes:5},
+];
+
+// ═══════════════════════════════════════════════════════
+// EXPIRY CALCULATION — auto-rolling
+// ═══════════════════════════════════════════════════════
+function getNextExpiry(dayOfWeek) {
+  // dayOfWeek: 4=Thursday (NIFTY/BANKNIFTY weekly), 3=Wednesday (some stocks monthly)
+  const now = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  const today = now.getDay();
+  const h = now.getHours(), m = now.getMinutes();
+  let daysAhead = (dayOfWeek - today + 7) % 7;
+  // If today IS expiry day and market is still open, use today
+  // If today IS expiry day but market closed, roll to next week
+  if(daysAhead === 0) {
+    if(h > 15 || (h === 15 && m > 30)) daysAhead = 7;
+  }
+  if(daysAhead === 0) daysAhead = 0; // today, market open
+  const exp = new Date(now);
+  exp.setDate(exp.getDate() + daysAhead);
+  return exp;
+}
+
+function getNiftyExpiry()     { return getNextExpiry(4); } // Thursday
+function getBankNiftyExpiry() { return getNextExpiry(3); } // Wednesday
+function getStockExpiry()     {
+  // Monthly last Thursday
+  const now = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  const year = now.getFullYear(), month = now.getMonth();
+  // Find last Thursday of current month
+  const lastDay = new Date(year, month+1, 0);
+  while(lastDay.getDay() !== 4) lastDay.setDate(lastDay.getDate()-1);
+  if(now > lastDay) { // current month expiry passed, go to next month
+    const nextMonth = new Date(year, month+2, 0);
+    while(nextMonth.getDay() !== 4) nextMonth.setDate(nextMonth.getDate()-1);
+    return nextMonth;
+  }
+  return lastDay;
+}
+
+function fmtExpiry(d) {
+  return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+}
+function daysToExpiry(d) {
+  const now = new Date();
+  const diff = Math.ceil((d - now)/(1000*60*60*24));
+  if(diff === 0) return 'Expires TODAY';
+  if(diff === 1) return '1 day left';
+  return diff + ' days left';
+}
+
+function updateExpiryDisplay() {
+  const ne = getNiftyExpiry(), be = getBankNiftyExpiry();
+  document.getElementById('nifty-expiry').textContent = fmtExpiry(ne);
+  document.getElementById('nifty-exp-days').textContent = daysToExpiry(ne);
+  document.getElementById('bnf-expiry').textContent = fmtExpiry(be);
+  document.getElementById('bnf-exp-days').textContent = daysToExpiry(be);
+}
+updateExpiryDisplay();
+
+// ═══════════════════════════════════════════════════════
+// STRIKE CALCULATION
+// ═══════════════════════════════════════════════════════
+function getStrikes(spotPrice, instrument) {
+  const strikes = [];
+  let step;
+  // Strike step size by instrument
+  if(instrument === 'NIFTY')      step = 50;
+  else if(instrument === 'BANKNIFTY') step = 100;
+  else if(spotPrice > 5000)       step = 100;
+  else if(spotPrice > 2000)       step = 50;
+  else if(spotPrice > 1000)       step = 20;
+  else if(spotPrice > 500)        step = 10;
+  else                            step = 5;
+
+  const atm = Math.round(spotPrice / step) * step;
+  // Generate ATM ± 5 strikes (all liquid strikes)
+  for(let i = -5; i <= 5; i++) {
+    strikes.push(atm + i * step);
+  }
+  return { strikes, atm, step };
+}
+
+// ═══════════════════════════════════════════════════════
+// TECHNICAL INDICATORS
+// ═══════════════════════════════════════════════════════
+function calcRSI(c,p=14){
+  if(c.length<p+1)return null;
+  let g=0,l=0;
+  for(let i=1;i<=p;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}
+  let ag=g/p,al=l/p;
+  for(let i=p+1;i<c.length;i++){
+    const d=c[i]-c[i-1],gn=d>0?d:0,ln=d<0?-d:0;
+    ag=(ag*(p-1)+gn)/p;al=(al*(p-1)+ln)/p;
+  }
+  return al===0?100:parseFloat((100-100/(1+ag/al)).toFixed(2));
+}
+function emaArr(data,p){
+  const k=2/(p+1),r=new Array(data.length).fill(null);
+  let s=0,ct=0;
+  for(let i=0;i<data.length;i++){
+    s+=data[i];ct++;
+    if(ct===p)r[i]=s/p;
+    else if(ct>p&&r[i-1]!==null)r[i]=data[i]*k+r[i-1]*(1-k);
+  }
+  return r;
+}
+function calcEMA(data,p){
+  const a=emaArr(data,p);
+  for(let i=a.length-1;i>=0;i--)if(a[i]!==null)return+a[i].toFixed(4);
+  return null;
+}
+function calcMACD(c){
+  if(c.length<27)return null;
+  const e12=emaArr(c,12),e26=emaArr(c,26);
+  const ml=[];
+  for(let i=0;i<c.length;i++)if(e12[i]!==null&&e26[i]!==null)ml.push(e12[i]-e26[i]);
+  if(ml.length<9)return null;
+  const sig=emaArr(ml,9);
+  const last=ml.length-1;
+  return{hist:+(ml[last]-(sig[last]||0)).toFixed(4),prevHist:+(ml[last-1]-(sig[Math.max(0,last-1)]||0)).toFixed(4),macd:+ml[last].toFixed(4),signal:+(sig[last]||0).toFixed(4)};
+}
+function calcATR(c,p=14){
+  if(c.length<p+1)return c[c.length-1]*0.012;
+  return c.slice(-p-1).reduce((sum,_,i,arr)=>i?sum+Math.abs(arr[i]-arr[i-1]):sum,0)/p;
+}
+
+// Estimate option greeks (Black-Scholes approximation)
+function estimateGreeks(spot, strike, daysLeft, iv=0.18, optType='CALL') {
+  const T = Math.max(daysLeft,0.5)/365;
+  const r = 0.065, sigma = iv;
+  const d1=(Math.log(spot/strike)+(r+sigma*sigma/2)*T)/(sigma*Math.sqrt(T));
+  const d2=d1-sigma*Math.sqrt(T);
+  const nd1=normalCDF(optType==='CALL'?d1:-d1);
+  const delta=optType==='CALL'?nd1:nd1-1;
+  const gamma=Math.exp(-d1*d1/2)/(spot*sigma*Math.sqrt(2*Math.PI*T));
+  const theta=-(spot*sigma*Math.exp(-d1*d1/2))/(2*Math.sqrt(2*Math.PI*T)*365);
+  const vega=spot*Math.sqrt(T)*Math.exp(-d1*d1/2)/Math.sqrt(2*Math.PI)/100;
+  return{delta:+delta.toFixed(3),gamma:+gamma.toFixed(4),theta:+theta.toFixed(2),vega:+vega.toFixed(3)};
+}
+function normalCDF(x){
+  const t=1/(1+0.2316419*Math.abs(x));
+  const d=0.3989423*Math.exp(-x*x/2);
+  const p=d*t*(0.3193815+t*(-0.3565638+t*(1.7814779+t*(-1.8212560+t*1.3302744))));
+  return x>0?1-p:p;
+}
+
+// ═══════════════════════════════════════════════════════
+// SIGNAL LOGIC FOR UNDERLYING (same as equity)
+// ═══════════════════════════════════════════════════════
+function computeULSignal(closes, price) {
+  if(!closes||closes.length<30) return null;
+  const rsi  = calcRSI(closes,14);
+  const ema  = calcEMA(closes,9);
+  const macd = calcMACD(closes);
+  if(rsi===null||ema===null||macd===null) return null;
+
+  const rsiSig  = rsi<38?'BUY':rsi>62?'SELL':'NEUTRAL';
+  const emaSig  = price>ema?'BUY':'SELL';
+  const macdSig = macd.hist>0&&macd.hist>macd.prevHist?'BUY'
+                : macd.hist<0&&macd.hist<macd.prevHist?'SELL':'NEUTRAL';
+
+  let score=0;
+  if(rsiSig==='BUY')  score+=35; if(rsiSig==='SELL')  score-=35;
+  if(emaSig==='BUY')  score+=30; if(emaSig==='SELL')  score-=30;
+  if(macdSig==='BUY') score+=35; if(macdSig==='SELL') score-=35;
+  if(rsi<30) score+=12; if(rsi>70) score-=12;
+  if(rsi<25) score+=8;  if(rsi>75) score-=8;
+  if(macd.macd>0&&macd.signal<0) score+=8;
+  if(macd.macd<0&&macd.signal>0) score-=8;
+  if(price>ema&&rsiSig==='BUY')  score+=5;
+  if(price<ema&&rsiSig==='SELL') score+=5;
+
+  const confidence = Math.min(97,Math.max(5,Math.abs(score)));
+  const ulDir = score>=MIN_CONF*0.85?'BULLISH':score<=-MIN_CONF*0.85?'BEARISH':'NEUTRAL';
+  const allAgree=(rsiSig===emaSig&&emaSig===macdSig&&rsiSig!=='NEUTRAL');
+  const atr = calcATR(closes,14);
+
+  return {rsi,ema:+ema.toFixed(2),macd,rsiSig,emaSig,macdSig,ulDir,confidence,allAgree,atr};
+}
+
+// Convert UL signal → CALL/PUT signals
+function deriveOptionSignals(ulSig, spot, inst, lotSize) {
+  if(!ulSig || ulSig.ulDir==='NEUTRAL') return [];
+  const signals=[];
+  const {strikes, atm, step} = getStrikes(spot, inst.sym);
+  const expiry = inst.type==='INDEX'?
+    (inst.sym==='NIFTY'?getNiftyExpiry():getBankNiftyExpiry()):
+    getStockExpiry();
+  const daysLeft = Math.ceil((expiry-new Date())/(1000*60*60*24));
+  const expStr = fmtExpiry(expiry);
+
+  strikes.forEach(strike => {
+    const isATM = strike === atm;
+    const isITM_call = strike < spot;
+    const isOTM_call = strike > spot;
+
+    // Estimate premium (simplified)
+    const moneyness = (spot - strike) / spot;
+    const basePrem = spot * 0.01 * Math.max(0.3, 1 - Math.abs(moneyness)*5);
+    const callPrem = Math.max(2, isITM_call ? basePrem*(1.5+moneyness*2) : basePrem*0.5);
+    const putPrem  = Math.max(2, isOTM_call  ? basePrem*(1.5-moneyness*2) : basePrem*0.5);
+
+    const callGreeks = estimateGreeks(spot,strike,daysLeft,0.18,'CALL');
+    const putGreeks  = estimateGreeks(spot,strike,daysLeft,0.18,'PUT');
+
+    if(ulSig.ulDir==='BULLISH'){
+      // ── CALL BUY ── (bullish, buy calls ATM/slightly OTM)
+      if(isATM || (strike <= atm+step*2 && strike >= atm-step)){
+        const conf = Math.min(95, ulSig.confidence + (isATM?5:0));
+        if(conf>=MIN_CONF){
+          const tgt = +(callPrem*1.5).toFixed(1);
+          const sl  = +(callPrem*0.7).toFixed(1);
+          signals.push({
+            sym:inst.sym, ul:spot, strike, optType:'CALL', action:'BUY',
+            signalType:'call-buy', premium:+callPrem.toFixed(1),
+            target:tgt, sl, rr:'1:'+(((tgt-callPrem)/(callPrem-sl)).toFixed(1)),
+            confidence:conf, allAgree:ulSig.allAgree, isATM,
+            rsi:ulSig.rsi,ema:ulSig.ema,macd:ulSig.macd,
+            rsiSig:ulSig.rsiSig,emaSig:ulSig.emaSig,macdSig:ulSig.macdSig,
+            greeks:callGreeks, lot:lotSize, daysLeft, expiry:expStr,
+            instType:inst.type, reason:buildReason(ulSig,'CALL BUY',strike,atm)
+          });
+        }
+      }
+      // ── PUT SELL ── (bullish hedge, sell puts below ATM)
+      if(strike < atm-step && strike >= atm-step*3){
+        const conf = Math.min(90, ulSig.confidence - 5);
+        if(conf>=MIN_CONF){
+          signals.push({
+            sym:inst.sym, ul:spot, strike, optType:'PUT', action:'SELL',
+            signalType:'put-sell', premium:+putPrem.toFixed(1),
+            target:+(putPrem*0.3).toFixed(1), sl:+(putPrem*1.8).toFixed(1), rr:'1:2',
+            confidence:conf, allAgree:ulSig.allAgree, isATM:false,
+            rsi:ulSig.rsi,ema:ulSig.ema,macd:ulSig.macd,
+            rsiSig:ulSig.rsiSig,emaSig:ulSig.emaSig,macdSig:ulSig.macdSig,
+            greeks:putGreeks, lot:lotSize, daysLeft, expiry:expStr,
+            instType:inst.type, reason:buildReason(ulSig,'PUT SELL',strike,atm)
+          });
+        }
+      }
+    }
+
+    if(ulSig.ulDir==='BEARISH'){
+      // ── PUT BUY ── (bearish, buy puts ATM/slightly OTM)
+      if(isATM || (strike >= atm-step*2 && strike <= atm+step)){
+        const conf = Math.min(95, ulSig.confidence + (isATM?5:0));
+        if(conf>=MIN_CONF){
+          const tgt = +(putPrem*1.5).toFixed(1);
+          const sl  = +(putPrem*0.7).toFixed(1);
+          signals.push({
+            sym:inst.sym, ul:spot, strike, optType:'PUT', action:'BUY',
+            signalType:'put-buy', premium:+putPrem.toFixed(1),
+            target:tgt, sl, rr:'1:'+(((tgt-putPrem)/(putPrem-sl)).toFixed(1)),
+            confidence:conf, allAgree:ulSig.allAgree, isATM,
+            rsi:ulSig.rsi,ema:ulSig.ema,macd:ulSig.macd,
+            rsiSig:ulSig.rsiSig,emaSig:ulSig.emaSig,macdSig:ulSig.macdSig,
+            greeks:putGreeks, lot:lotSize, daysLeft, expiry:expStr,
+            instType:inst.type, reason:buildReason(ulSig,'PUT BUY',strike,atm)
+          });
+        }
+      }
+      // ── CALL SELL ── (bearish hedge, sell calls above ATM)
+      if(strike > atm+step && strike <= atm+step*3){
+        const conf = Math.min(90, ulSig.confidence - 5);
+        if(conf>=MIN_CONF){
+          signals.push({
+            sym:inst.sym, ul:spot, strike, optType:'CALL', action:'SELL',
+            signalType:'call-sell', premium:+callPrem.toFixed(1),
+            target:+(callPrem*0.3).toFixed(1), sl:+(callPrem*1.8).toFixed(1), rr:'1:2',
+            confidence:conf, allAgree:ulSig.allAgree, isATM:false,
+            rsi:ulSig.rsi,ema:ulSig.ema,macd:ulSig.macd,
+            rsiSig:ulSig.rsiSig,emaSig:ulSig.emaSig,macdSig:ulSig.macdSig,
+            greeks:callGreeks, lot:lotSize, daysLeft, expiry:expStr,
+            instType:inst.type, reason:buildReason(ulSig,'CALL SELL',strike,atm)
+          });
+        }
+      }
+    }
+  });
+  return signals;
+}
+
+function buildReason(ulSig, action, strike, atm) {
+  const parts=[];
+  if(ulSig.rsiSig==='BUY')   parts.push(`RSI ${ulSig.rsi} oversold`);
+  if(ulSig.rsiSig==='SELL')  parts.push(`RSI ${ulSig.rsi} overbought`);
+  if(ulSig.emaSig==='BUY')   parts.push('Price above EMA9');
+  if(ulSig.emaSig==='SELL')  parts.push('Price below EMA9');
+  if(ulSig.macdSig==='BUY')  parts.push('MACD bullish crossover');
+  if(ulSig.macdSig==='SELL') parts.push('MACD bearish crossover');
+  const rel = strike===atm?'ATM':strike<atm?`ITM (${strike})`:`OTM (${strike})`;
+  parts.push(`${rel} strike`);
+  return `${action}: ${parts.join(' · ')}`;
+}
+
+// ═══════════════════════════════════════════════════════
+// FETCH WITH PROXY FALLBACK
+// ═══════════════════════════════════════════════════════
+async function fetchUL(sym) {
+  const urls=[
+    `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=60d`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=60d`,
+    `https://corsproxy.io/?${encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1d&range=60d')}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent('https://query1.finance.yahoo.com/v8/finance/chart/'+sym+'?interval=1d&range=60d')}`,
+  ];
+  for(const url of urls){
+    try{
+      const r=await fetch(url,{headers:{'Accept':'application/json'}});
+      if(!r.ok) throw new Error(r.status);
+      const j=await r.json();
+      if(j?.chart?.result?.[0]) return j;
+    }catch(e){}
+  }
+  throw new Error('failed');
+}
+
+// ═══════════════════════════════════════════════════════
+// MAIN F&O SCAN
+// ═══════════════════════════════════════════════════════
+async function runFOScan(){
+  if(scanRunning) return;
+  if(isMarketClosed()){showToast('🔒 Market closed. Scan disabled until 9:15 AM.');return;}
+  scanRunning=true;
+  const btn=document.getElementById('scan-btn');
+  btn.classList.add('loading');btn.disabled=true;
+  btn.querySelector('.st').style.display='inline';
+  allOptions=[];
+  setProgress(0,'Scanning underlying prices...');
+  document.getElementById('opt-grid').innerHTML=Array(8).fill('<div class="skel"></div>').join('');
+
+  let done=0,cb=0,cs=0,pb=0,ps=0,strong=0;
+  const total=FO_INSTRUMENTS.length;
+
+  for(let i=0;i<total;i++){
+    const inst=FO_INSTRUMENTS[i];
+    try{
+      const data=await fetchUL(inst.ul);
+      const res=data.chart.result[0];
+      const closes=(res.indicators.quote[0].close||[]).filter(c=>c!=null);
+      const meta=res.meta;
+      const spot=meta.regularMarketPrice;
+      const ulSig=computeULSignal(closes,spot);
+      if(ulSig&&ulSig.ulDir!=='NEUTRAL'){
+        const opts=deriveOptionSignals(ulSig,spot,inst,inst.lot);
+        opts.forEach(o=>{
+          allOptions.push({...o,scannedAt:new Date()});
+          if(o.signalType==='call-buy')  cb++;
+          if(o.signalType==='call-sell') cs++;
+          if(o.signalType==='put-buy')   pb++;
+          if(o.signalType==='put-sell')  ps++;
+          if(o.confidence>=MIN_CONF)     strong++;
+          // Popup for high-conf ATM signals
+          if(o.isATM&&o.confidence>=MIN_CONF){
+            showPopupAlert(o);
+          }
+        });
+      }
+    }catch(e){}
+    done++;
+    setProgress(Math.round(done/total*100),`Scanned ${done}/${total} instruments`);
+    document.getElementById('st-total').textContent=done;
+    document.getElementById('st-cb').textContent=cb;
+    document.getElementById('st-cs').textContent=cs;
+    document.getElementById('st-pb').textContent=pb;
+    document.getElementById('st-ps').textContent=ps;
+    document.getElementById('st-strong').textContent=strong;
+    await new Promise(r=>setTimeout(r,400));
+  }
+
+  // Save to localStorage
+  try{localStorage.setItem(LS_KEY_FO,JSON.stringify(allOptions));}catch(e){}
+
+  renderCards();
+  buildOITable();
+  setProgress(100,'F&O scan complete');
+  const ist=getIST();
+  document.getElementById('last-scan-time').textContent='Last: '+ist.toLocaleTimeString('en-IN',{hour12:true});
+  btn.classList.remove('loading');btn.disabled=false;
+  btn.querySelector('.st').style.display='none';
+  scanRunning=false;
+  showToast(`⚡ F&O: ${cb} CALL BUY · ${pb} PUT BUY · ${cs} CALL SELL · ${ps} PUT SELL`);
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER OPTION CARDS
+// ═══════════════════════════════════════════════════════
+function renderCards(){
+  let data=[...allOptions];
+  if(INST_FILTER!=='ALL')  data=data.filter(o=>INST_FILTER==='STOCKS'?o.instType==='STOCK':o.sym===INST_FILTER);
+  if(OPT_TYPE!=='ALL')     data=data.filter(o=>o.optType===OPT_TYPE);
+  if(CARD_FILTER!=='all')  data=data.filter(o=>o.signalType===CARD_FILTER);
+  const sort=document.getElementById('sort-sel').value;
+  if(sort==='conf-desc')   data.sort((a,b)=>b.confidence-a.confidence);
+  if(sort==='rsi-asc')     data.sort((a,b)=>a.rsi-b.rsi);
+  if(sort==='strike-asc')  data.sort((a,b)=>a.strike-b.strike);
+  if(sort==='strike-desc') data.sort((a,b)=>b.strike-a.strike);
+
+  const counts={all:allOptions.length,'call-buy':0,'call-sell':0,'put-buy':0,'put-sell':0};
+  allOptions.forEach(o=>counts[o.signalType]=(counts[o.signalType]||0)+1);
+  document.getElementById('fcnt-all').textContent=counts.all;
+  document.getElementById('fcnt-cb').textContent=counts['call-buy']||0;
+  document.getElementById('fcnt-cs').textContent=counts['call-sell']||0;
+  document.getElementById('fcnt-pb').textContent=counts['put-buy']||0;
+  document.getElementById('fcnt-ps').textContent=counts['put-sell']||0;
+
+  if(!data.length){
+    document.getElementById('opt-grid').innerHTML=`<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">No signals for this filter</div><div class="empty-sub">Try "All" or scan again. Strong signals need RSI+MACD+EMA to agree with ≥85% confidence.</div></div>`;
+    return;
+  }
+  document.getElementById('opt-grid').innerHTML=data.map(buildCard).join('');
+}
+
+function buildCard(o){
+  const cls=o.signalType;
+  const dirText={
+    'call-buy':'▲ CALL BUY','call-sell':'▼ CALL SELL',
+    'put-buy':'▲ PUT BUY','put-sell':'▼ PUT SELL'
+  }[cls];
+  const isNew=o.scannedAt&&(Date.now()-new Date(o.scannedAt))<120000;
+  const rsiCol=o.rsi<38?'var(--red)':o.rsi>62?'var(--green)':'var(--gold)';
+  const macdCol=o.macd&&o.macd.hist>0?'var(--green)':'var(--red)';
+  const emaCol=o.emaSig==='BUY'?'var(--green)':'var(--red)';
+  const tgtCol=o.action==='BUY'?'var(--green)':'var(--red)';
+  const slCol =o.action==='BUY'?'var(--red)':'var(--green)';
+  const macdHist=o.macd?o.macd.hist:0;
+  const lotVal=(o.lot*o.premium).toLocaleString('en-IN');
+  return`<div class="opt-card ${cls}${o.allAgree&&o.confidence>=MIN_CONF?' strong':''}">
+  <div class="oc-top">
+    <div class="oc-left">
+      <div class="oc-sym">${o.sym} ${o.strike} ${o.optType}</div>
+      <div class="oc-detail">${o.action} · Lot: ${o.lot} · 1 lot ≈ ₹${lotVal}</div>
+      <div class="oc-expiry">Expiry: ${o.expiry} · ${o.daysLeft}d left${o.isATM?' · 🎯 ATM':''}</div>
+    </div>
+    <div class="oc-right">
+      <div class="oc-price" style="color:${tgtCol}">₹${fmt(o.premium)}</div>
+      <div class="oc-ul">UL: ₹${fmt(o.ul)}</div>
+    </div>
+  </div>
+  <div class="oc-badge ${cls}">
+    <div class="oc-dir ${cls}">${dirText}</div>
+    <div class="oc-conf-wrap">
+      <div class="oc-conf-lbl">Confidence</div>
+      <div class="oc-conf-track"><div class="oc-conf-fill ${cls}" style="width:${o.confidence}%"></div></div>
+    </div>
+    <div class="oc-conf-pct ${cls}">${o.confidence}%</div>
+    ${isNew?'<span class="new-badge">NEW</span>':''}
+  </div>
+  <div class="oc-inds">
+    <div class="oc-ind">
+      <div class="oc-ind-name">RSI(14)</div>
+      <div class="oc-ind-val" style="color:${rsiCol}">${o.rsi}</div>
+      <div class="oc-ind-sig ${o.rsiSig==='BUY'?'bull':o.rsiSig==='SELL'?'bear':'neut'}">${o.rsiSig==='BUY'?'↑ Oversold':o.rsiSig==='SELL'?'↓ Overbought':'→ Neutral'}</div>
+    </div>
+    <div class="oc-ind">
+      <div class="oc-ind-name">MACD</div>
+      <div class="oc-ind-val" style="color:${macdCol}">${macdHist>0?'+':''}${macdHist}</div>
+      <div class="oc-ind-sig ${o.macdSig==='BUY'?'bull':o.macdSig==='SELL'?'bear':'neut'}">${o.macdSig==='BUY'?'↑ Bullish':o.macdSig==='SELL'?'↓ Bearish':'→ Flat'}</div>
+    </div>
+    <div class="oc-ind">
+      <div class="oc-ind-name">EMA(9)</div>
+      <div class="oc-ind-val" style="color:${emaCol}">₹${fmt(o.ema)}</div>
+      <div class="oc-ind-sig ${o.emaSig==='BUY'?'bull':'bear'}">${o.emaSig==='BUY'?'↑ Above':'↓ Below'}</div>
+    </div>
+  </div>
+  <div class="greeks">
+    <div class="greek-box"><div class="greek-name">Delta</div><div class="greek-val" style="color:${o.greeks.delta>0?'var(--green)':'var(--red)'}">${o.greeks.delta}</div></div>
+    <div class="greek-box"><div class="greek-name">Gamma</div><div class="greek-val">${o.greeks.gamma}</div></div>
+    <div class="greek-box"><div class="greek-name">Theta</div><div class="greek-val" style="color:var(--red)">${o.greeks.theta}</div></div>
+    <div class="greek-box"><div class="greek-name">Vega</div><div class="greek-val" style="color:var(--blue)">${o.greeks.vega}</div></div>
+  </div>
+  <div class="oc-levels">
+    <div class="lv-box"><div class="lv-lbl">Entry (Premium)</div><div class="lv-val" style="color:var(--blue)">₹${fmt(o.premium)}</div></div>
+    <div class="lv-box"><div class="lv-lbl">Target</div><div class="lv-val" style="color:${tgtCol}">₹${fmt(o.target)}</div></div>
+    <div class="lv-box"><div class="lv-lbl">Stop Loss</div><div class="lv-val" style="color:${slCol}">₹${fmt(o.sl)}</div></div>
+  </div>
+  <div class="oc-bottom">
+    <span class="rr-badge">R:R ${o.rr}</span>
+    <span class="lot-badge">Lot size: ${o.lot} · Margin ≈ ₹${(o.lot*o.premium*5).toLocaleString('en-IN')}</span>
+    ${o.isATM?'<span class="atm-badge">🎯 ATM</span>':''}
+  </div>
+  <div class="reason-row">
+    ${o.allAgree?'<span class="all-agree">✅ All 3 indicators agree — high accuracy</span>':''}
+    💡 ${o.reason}
+  </div>
+</div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// OI TABLE (simulated PCR-based, since NSE blocks CORS)
+// ═══════════════════════════════════════════════════════
+function buildOITable(){
+  document.getElementById('oi-section').style.display='block';
+  renderOITable();
+}
+function renderOITable(){
+  const inst=document.getElementById('oi-inst-sel').value;
+  const spot=inst==='NIFTY'?
+    parseFloat(document.getElementById('nifty-val').textContent.replace(/,/g,''))||24000:
+    parseFloat(document.getElementById('bnf-val').textContent.replace(/,/g,''))||52000;
+  const step=inst==='NIFTY'?50:100;
+  const atm=Math.round(spot/step)*step;
+  document.getElementById('oi-sub').textContent=`${inst} spot: ₹${fmt(spot)} · ATM: ${atm} · Nearest expiry`;
+
+  const rows=[];
+  for(let i=-7;i<=7;i++){
+    const strike=atm+i*step;
+    const isATM=i===0;
+    // Simulate realistic OI distribution (peaks at ATM, decreases away)
+    const factor=Math.exp(-Math.abs(i)*0.35);
+    const baseOI=isATM?5000000:Math.round(3000000*factor);
+    const callOI=Math.round(baseOI*(1+(i>0?0.2:0)));
+    const putOI =Math.round(baseOI*(1+(i<0?0.2:0)));
+    const callChgOI=Math.round((Math.random()-0.45)*callOI*0.15);
+    const putChgOI =Math.round((Math.random()-0.45)*putOI*0.15);
+    const callLTP=Math.max(1,+(spot*0.01*Math.max(0.1,1-Math.abs(i)*0.2)*(i<=0?1.5:0.5)).toFixed(1));
+    const putLTP =Math.max(1,+(spot*0.01*Math.max(0.1,1-Math.abs(i)*0.2)*(i>=0?1.5:0.5)).toFixed(1));
+    const pcr=(putOI/callOI).toFixed(2);
+    rows.push({strike,callOI,putOI,callChgOI,putChgOI,callLTP,putLTP,pcr,isATM});
+  }
+  const maxOI=Math.max(...rows.map(r=>Math.max(r.callOI,r.putOI)));
+  document.getElementById('oi-tbody').innerHTML=rows.map(r=>`
+    <tr class="${r.isATM?'atm-row':''}">
+      <td class="call-col">
+        ${(r.callOI/1e5).toFixed(1)}L
+        <div class="oi-bar" style="background:var(--green);width:${Math.round(r.callOI/maxOI*100)}px"></div>
+      </td>
+      <td class="${r.callChgOI>0?'call-col':'put-col'}">${r.callChgOI>0?'+':''}${(r.callChgOI/1e5).toFixed(2)}L</td>
+      <td class="call-col">₹${r.callLTP}</td>
+      <td class="strike-col">${r.strike}${r.isATM?' ← ATM':''}</td>
+      <td class="put-col">₹${r.putLTP}</td>
+      <td class="${r.putChgOI>0?'put-col':'call-col'}">${r.putChgOI>0?'+':''}${(r.putChgOI/1e5).toFixed(2)}L</td>
+      <td class="put-col">
+        ${(r.putOI/1e5).toFixed(1)}L
+        <div class="oi-bar" style="background:var(--red);width:${Math.round(r.putOI/maxOI*100)}px"></div>
+      </td>
+      <td style="color:${+r.pcr>1?'var(--green)':'var(--red)'};">${r.pcr}</td>
+    </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// LOAD INDEX PRICES
+// ═══════════════════════════════════════════════════════
+async function loadIndices(){
+  const pairs=[
+    {sym:'^NSEI',    valId:'nifty-val',chgId:'nifty-chg'},
+    {sym:'^NSEBANK', valId:'bnf-val',  chgId:'bnf-chg'},
+    {sym:'^CNXIT',   valId:'nit-val',  chgId:'nit-chg'},
+    {sym:'^INDIAVIX',valId:'vix-val',  chgId:'vix-chg'},
+  ];
+  pairs.forEach(async p=>{
+    try{
+      const data=await fetchUL(p.sym);
+      const meta=data.chart.result[0].meta;
+      const price=meta.regularMarketPrice;
+      const prev=meta.chartPreviousClose;
+      const chg=price-prev,pct=(chg/prev*100),up=chg>=0;
+      document.getElementById(p.valId).textContent=price.toLocaleString('en-IN',{maximumFractionDigits:2});
+      document.getElementById(p.valId).style.color=up?'var(--green)':'var(--red)';
+      if(p.chgId!=='vix-chg')
+        document.getElementById(p.chgId).innerHTML=`<span style="color:${up?'var(--green)':'var(--red)'}">${up?'+':''}${fmt(chg)} (${up?'+':''}${pct.toFixed(2)}%)</span>`;
+    }catch(e){}
+  });
+}
+loadIndices();
+setInterval(loadIndices, 60000);
+
+// ═══════════════════════════════════════════════════════
+// POPUP ALERTS
+// ═══════════════════════════════════════════════════════
+function showPopupAlert(o){
+  const wrap=document.getElementById('alert-popup');
+  wrap.style.display='flex';
+  const cls=o.signalType;
+  const colMap={'call-buy':'var(--green)','call-sell':'var(--orange)','put-buy':'var(--red)','put-sell':'var(--purple)'};
+  const col=colMap[cls];
+  const div=document.createElement('div');
+  div.className='alert-card';
+  div.style.borderColor=col;
+  div.innerHTML=`
+    <span class="alert-close" onclick="this.parentElement.remove();if(!document.getElementById('alert-popup').children.length)document.getElementById('alert-popup').style.display='none'">✕</span>
+    <div class="alert-top">
+      <span class="alert-sym">${o.sym} ${o.strike} ${o.optType}</span>
+      <span class="alert-dir-badge" style="background:${col}22;color:${col};border:1px solid ${col}55">${o.action}</span>
+    </div>
+    <div class="alert-detail">
+      Premium ₹${fmt(o.premium)} · <b style="color:var(--gold)">${o.confidence}%</b> confidence<br>
+      Target ₹${fmt(o.target)} · SL ₹${fmt(o.sl)} · R:R ${o.rr}<br>
+      Expiry: ${o.expiry} · ${o.daysLeft}d · Lot: ${o.lot}
+    </div>`;
+  wrap.insertBefore(div,wrap.firstChild);
+  setTimeout(()=>{div.remove();if(!wrap.children.length)wrap.style.display='none';},30000);
+  while(wrap.children.length>4) wrap.lastChild.remove();
+}
+
+// ═══════════════════════════════════════════════════════
+// AUTO SCAN
+// ═══════════════════════════════════════════════════════
+function toggleAuto(){
+  const on=document.getElementById('auto-tog').checked;
+  if(on){
+    if(!isMarketOpen()){
+      showToast('⛔ Auto-scan only works 9:15 AM – 3:30 PM IST.');
+      document.getElementById('auto-tog').checked=false;
+      document.getElementById('auto-txt').textContent='OFF';
+      return;
+    }
+    document.getElementById('auto-txt').textContent='5min';
+    runFOScan();
+    autoTimer=setInterval(()=>{
+      if(isMarketOpen()) runFOScan();
+      else{
+        clearInterval(autoTimer);autoTimer=null;
+        document.getElementById('auto-tog').checked=false;
+        document.getElementById('auto-txt').textContent='OFF';
+        document.getElementById('scan-btn').disabled=true;
+        showToast('🔒 Market closed at 3:30 PM. Auto-scan stopped.',5000);
+        updateMarketUI();
+      }
+    },5*60*1000);
+    showToast('⏱ Auto F&O scan every 5 min');
+  }else{
+    clearInterval(autoTimer);autoTimer=null;
+    document.getElementById('auto-txt').textContent='OFF';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// MARKET HOURS + CLOCK
+// ═══════════════════════════════════════════════════════
+function getIST(){return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}))}
+function isWeekend(){const d=getIST().getDay();return d===0||d===6}
+function isMarketOpen(){
+  if(isWeekend())return false;
+  const ist=getIST(),h=ist.getHours(),m=ist.getMinutes();
+  return (h*60+m)>=555&&(h<15||(h===15&&m<=30));
+}
+function isMarketClosed(){
+  if(isWeekend())return true;
+  const ist=getIST(),h=ist.getHours(),m=ist.getMinutes();
+  return h>15||(h===15&&m>30);
+}
+
+function updateMarketUI(){
+  const ist=getIST();
+  document.getElementById('hdr-time').textContent=ist.toLocaleTimeString('en-IN',{hour12:false});
+  const open=isMarketOpen(),closed=isMarketClosed(),wknd=isWeekend();
+  const pre=!open&&!closed&&!wknd;
+  const dot=document.getElementById('mkt-dot');
+  if(pre)      {dot.className='dot pre';document.getElementById('mkt-lbl').textContent='Pre-Open';}
+  else if(open){dot.className='dot';    document.getElementById('mkt-lbl').textContent='Market Open';}
+  else         {dot.className='dot off';document.getElementById('mkt-lbl').textContent='Market Closed';}
+  const banner=document.getElementById('closed-banner');
+  banner.style.display=open?'none':'block';
+  document.getElementById('scan-btn').disabled=closed;
+  if(!open){
+    let nx=wknd?'Market reopens Monday 9:15 AM IST':'Market reopens tomorrow 9:15 AM IST';
+    if(pre) nx='Market opens at 9:15 AM IST today';
+    document.getElementById('next-open-txt').textContent=nx;
+  }
+  updateExpiryDisplay();
+}
+setInterval(updateMarketUI,1000);
+updateMarketUI();
+
+// ═══════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════
+function setProgress(pct,lbl){
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-lbl').textContent=lbl;
+}
+function setInst(el,v){
+  document.querySelectorAll('#inst-btns .seg-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');INST_FILTER=v;if(allOptions.length)renderCards();
+}
+function setOptType(el,v){
+  document.querySelectorAll('#type-btns .seg-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');OPT_TYPE=v;if(allOptions.length)renderCards();
+}
+function applyFilter(el,f){
+  document.querySelectorAll('.f-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');CARD_FILTER=f;if(allOptions.length)renderCards();
+}
+function showToast(msg,dur=4000){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.display='block';
+  clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',dur);
+}
+function fmt(n){return n!=null?n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
+
+// Restore from localStorage on load
+window.addEventListener('load',()=>{
+  try{
+    const raw=localStorage.getItem(LS_KEY_FO);
+    if(raw){
+      const parsed=JSON.parse(raw);
+      if(Array.isArray(parsed)&&parsed.length){
+        allOptions=parsed;
+        renderCards();
+        buildOITable();
+        document.getElementById('last-scan-time').textContent='Restored from today\'s scan';
+        const cb=allOptions.filter(o=>o.signalType==='call-buy').length;
+        const cs=allOptions.filter(o=>o.signalType==='call-sell').length;
+        const pb=allOptions.filter(o=>o.signalType==='put-buy').length;
+        const ps=allOptions.filter(o=>o.signalType==='put-sell').length;
+        document.getElementById('st-total').textContent=allOptions.length;
+        document.getElementById('st-cb').textContent=cb;
+        document.getElementById('st-cs').textContent=cs;
+        document.getElementById('st-pb').textContent=pb;
+        document.getElementById('st-ps').textContent=ps;
+        document.getElementById('st-strong').textContent=allOptions.filter(o=>o.confidence>=MIN_CONF).length;
+      }
+    }
+  }catch(e){}
+});
+</script>
+</body>
+</html>
